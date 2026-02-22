@@ -275,10 +275,11 @@ Só aprova quando **todos** estiverem marcados:
 
 ---
 
-## Passo 5 — Atualizar CONTEXT.md
+## Passo 5 — Atualizar CONTEXT.md e handoff.md
 
 Sempre o último passo. Nunca pular.
 
+### CONTEXT.md
 ```markdown
 ## O que já está implementado
 
@@ -292,6 +293,21 @@ Sempre o último passo. Nunca pular.
 | Decisão | Escolha | Motivo |
 |---|---|---|
 | [decisão] | [escolha] | [motivo] |
+```
+
+### handoff.md
+
+Atualizar a tabela de histórico com o que foi feito nesta sessão:
+
+```markdown
+| [Data] | [Nome da IA/Editor] | [Resumo do que foi implementado] |
+```
+
+E atualizar as seções:
+```
+→ "✅ COMPLETO" — adicionar o que foi concluído
+→ "❌ NÃO IMPLEMENTADO" — remover o que foi feito
+→ "Prioridade sugerida" — atualizar com próximos passos
 ```
 
 ---
@@ -319,6 +335,30 @@ Sempre o último passo. Nunca pular.
 ```
 
 ---
+
+## Atualização obrigatória do task.md
+
+Ao iniciar:
+```
+→ Abrir task.md
+→ Marcar tarefas do Agente 4 como [/] em andamento
+→ Atualizar percentual da fase
+```
+
+Ao finalizar (somente se APROVADO):
+```
+→ Marcar todas as tarefas da feature como [x]
+→ Calcular e atualizar percentual da Fase 3
+→ Atualizar progresso geral no topo do task.md
+→ Registrar feature como concluída
+```
+
+Se REPROVADO:
+```
+→ Manter tarefas problemáticas como [/]
+→ Adicionar observação do que precisa corrigir
+→ Não avançar o percentual
+```
 
 ## O que nunca aprovo
 

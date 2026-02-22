@@ -1,4 +1,4 @@
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Users } from 'lucide-react'
 import { listTeamMembers } from '@/features/team/actions'
 import { getAuthContext } from '@/features/auth/actions'
 import { EmptyState } from '@/components/empty-state'
@@ -42,8 +42,9 @@ export default async function TeamPage() {
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
+                    icon={Users}
                     title="Nenhum membro cadastrado"
-                    description="Convide inspetores e supervisores para sua equipe"
+                    description="Convide inspetores e supervisores para começar a criar e gerenciar inspeções de qualidade."
                 />
             ) : (
                 <TeamTable

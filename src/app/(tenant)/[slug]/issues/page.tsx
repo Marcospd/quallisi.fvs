@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react'
 import { listIssues } from '@/features/issues/actions'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
@@ -27,8 +28,9 @@ export default async function IssuesPage() {
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
+                    icon={AlertTriangle}
                     title="Nenhuma pendência registrada"
-                    description="As pendências são geradas quando inspeções contêm não-conformidades (NC)"
+                    description="As pendências são geradas automaticamente quando inspeções contêm não-conformidades (NC). Isso é um bom sinal!"
                 />
             ) : (
                 <IssuesTable issues={result.data} />

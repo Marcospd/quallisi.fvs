@@ -1,10 +1,10 @@
-import { Plus } from 'lucide-react'
+import { Plus, MapPin } from 'lucide-react'
 import { listLocations } from '@/features/locations/actions'
 import { CreateLocationDialog } from '@/features/locations/components/create-location-dialog'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/status-badge'
 import {
     Table,
     TableBody,
@@ -46,8 +46,9 @@ export default async function LocationsPage() {
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
+                    icon={MapPin}
                     title="Nenhum local cadastrado"
-                    description="Crie o primeiro local de inspeção"
+                    description="Cadastre pontos de inspeção dentro das suas obras para poder criar FVS."
                     action={
                         <CreateLocationDialog>
                             <Button>
@@ -58,38 +59,48 @@ export default async function LocationsPage() {
                     }
                 />
             ) : (
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Local</TableHead>
-                            <TableHead>Obra</TableHead>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Status</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {result.data.map((item) => {
-                            const loc = 'location' in item ? item.location : item
-                            const proj = 'project' in item ? item.project : null
-                            return (
-                                <TableRow key={loc.id}>
-                                    <TableCell className="font-medium">{loc.name}</TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {proj ? proj.name : '—'}
-                                    </TableCell>
-                                    <TableCell className="text-muted-foreground">
-                                        {loc.description || '—'}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant={loc.active ? 'default' : 'secondary'}>
-                                            {loc.active ? 'Ativo' : 'Inativo'}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            )
-                        })}
-                    </TableBody>
-                </Table>
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Local</TableHead>
+                                <TableHead>Obra</TableHead>
+                                <TableHead>Descrição</TableHead>
+                                <TableHead>Status</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {result.data.map((item) => {
+                                const loc = 'location' in item ? item.location : item
+                                const proj = 'project' in item ? item.project : null
+                                return (
+                                    <TableRow key={loc.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400">
+                                                    <MapPin className="h-4 w-4" />
+                                                </div>
+                                                <span className="font-medium">{loc.name}</span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {proj ? proj.name : '—'}
+                                        </TableCell>
+                                        <TableCell className="text-sm text-muted-foreground">
+                                            {loc.description || '—'}
+                                        </TableCell>
+                                        <TableCell>
+                                            <StatusBadge
+                                                label={loc.active ? 'Ativo' : 'Inativo'}
+                                                variant={loc.active ? 'success' : 'neutral'}
+                                            />
+                                        </TableCell>
+                                    </TableRow>
+                                )
+                            })}
+                        </TableBody>
+                    </Table>
+                </div>
             )}
         </div>
     )

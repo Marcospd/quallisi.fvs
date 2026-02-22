@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Plus, Building2 } from 'lucide-react'
 import { listProjects } from '@/features/projects/actions'
 import { ProjectsTable } from '@/features/projects/components/projects-table'
 import { CreateProjectDialog } from '@/features/projects/components/create-project-dialog'
@@ -38,8 +38,9 @@ export default async function ProjectsPage() {
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
+                    icon={Building2}
                     title="Nenhuma obra cadastrada"
-                    description="Crie a primeira obra para começar"
+                    description="Cadastre sua primeira obra para começar a gerenciar inspeções de qualidade."
                     action={
                         <CreateProjectDialog>
                             <Button>

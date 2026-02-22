@@ -39,6 +39,9 @@ Abra uma sessão nova com a IA e faça:
 3. Responda as perguntas da IA
 4. A IA vai gerar o CONTEXT.md completo
 5. Salve o arquivo na raiz do projeto
+6. Copie o task-template.md para a raiz como task.md
+7. Copie o handoff-template.md para a raiz como handoff.md
+8. A IA vai manter o task.md e o handoff.md atualizados durante todo o desenvolvimento
 ```
 
 O CONTEXT.md vai conter:
@@ -65,8 +68,12 @@ seu-projeto/
 │   ├── agent-3-frontend.md      → agente frontend
 │   ├── agent-4-qualidade.md     → agente qualidade
 │   ├── security.md              → referência de segurança
-│   └── context-template.md      → template do CONTEXT.md
+│   ├── context-template.md      → template do CONTEXT.md
+│   ├── task-template.md         → template do task.md
+│   └── handoff-template.md      → template do handoff.md
 ├── CONTEXT.md                   → contexto do projeto (raiz)
+├── task.md                      → painel de progresso (raiz)
+├── handoff.md                   → continuidade entre IAs (raiz)
 ├── src/
 │   └── tests/
 │       ├── fixtures.ts          → dados de teste padronizados
@@ -211,9 +218,38 @@ Para cada nova funcionalidade do sistema, siga esta sequência:
 
 ---
 
-### Etapa 3.4 — Agente Qualidade e Segurança
+### Etapa 3.4 — Agente UX/UI
 
 **Quando usar:** após ter o output do Frontend
+
+**O que fazer:**
+
+```
+1. Abra uma sessão nova com a IA
+2. Cole o agent-5-uxui.md
+3. Cole o CONTEXT.md atualizado
+4. Cole o output do Agente Frontend
+5. Acompanhe as melhorias propostas
+6. Aplique o código gerado no projeto
+7. Salve o output do UX/UI
+```
+
+**Resultado esperado:**
+
+```
+→ Dashboards com métricas e gráficos
+→ Listagens com elementos visuais por item
+→ Empty states orientados com ação clara
+→ Formulários organizados e intuitivos
+→ Responsividade mobile verificada
+→ Melhorias de UX documentadas
+```
+
+---
+
+### Etapa 3.5 — Agente Qualidade e Segurança
+
+**Quando usar:** após ter o output do UX/UI
 
 **O que fazer:**
 
@@ -288,6 +324,30 @@ integrações, regras elaboradas):
 
 ---
 
+## Handoff entre IAs
+
+Quando for trocar de IA ou encerrar uma sessão, sempre atualize o `handoff.md`:
+
+```
+1. Abra o handoff.md na raiz do projeto
+2. Atualize a seção "✅ COMPLETO" com o que foi feito
+3. Atualize a seção "❌ NÃO IMPLEMENTADO" removendo o que foi concluído
+4. Atualize "Prioridade sugerida" com os próximos passos
+5. Adicione uma linha na tabela "Histórico de Handoffs":
+   | [data] | [nome da IA] | [resumo do que foi feito] |
+```
+
+Quando a próxima IA começar:
+
+```
+1. Cole o ai-dev-guide.md
+2. Cole o CONTEXT.md
+3. Cole o handoff.md
+4. A IA lê os 3, entende onde parou e continua
+```
+
+---
+
 ## FASE 5 — Iteração
 
 ### Como evoluir o sistema sem quebrar o que funciona
@@ -351,6 +411,9 @@ Para cada feature:
   Agente 3 — Frontend
   (componentes + rotas + menus)
     ↓
+  Agente 5 — UX/UI
+  (métricas, gráficos, valor visual, experiência)
+    ↓
   Agente 4 — Qualidade
   (segurança + testes + checklist + CONTEXT.md)
     ↓
@@ -368,8 +431,8 @@ Fase 5 — Iterar baseado em uso real
 ## Dicas para manter a qualidade ao longo do tempo
 
 ```
-→ Sempre atualizar o CONTEXT.md ao final de cada sessão
-   Sem isso, a próxima sessão começa sem contexto
+→ Sempre atualizar o CONTEXT.md, task.md e handoff.md ao final de cada sessão
+   Sem isso, a próxima IA começa sem contexto e refaz trabalho já feito
 
 → Nunca pular o Agente 4
    É ele que garante que nada inseguro vai para produção

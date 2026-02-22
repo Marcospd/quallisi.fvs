@@ -1,4 +1,4 @@
-import { Plus } from 'lucide-react'
+import { Plus, ClipboardCheck } from 'lucide-react'
 import { listInspections } from '@/features/inspections/actions'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
@@ -43,8 +43,9 @@ export default async function InspectionsPage({
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
+                    icon={ClipboardCheck}
                     title="Nenhuma inspeção realizada"
-                    description="Crie uma inspeção para começar a avaliar serviços no campo"
+                    description="Crie uma FVS para avaliar a qualidade dos serviços diretamente no campo."
                     action={
                         <CreateInspectionDialog tenantSlug={slug}>
                             <Button>

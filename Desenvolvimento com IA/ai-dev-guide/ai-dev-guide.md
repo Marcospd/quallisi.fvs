@@ -31,6 +31,10 @@ Antes de qualquer coisa, leia o CONTEXT.md e verifique:
    → Sim: cole o CONTEXT.md atualizado
    → Não: me informe as decisões de stack tomadas
            e o que já está implementado
+
+3. Tem handoff de sessão anterior?
+   → Sim: cole o handoff.md — vou continuar de onde parou
+   → Não: vamos iniciar do zero
 ```
 
 ---
@@ -444,6 +448,8 @@ Segurança:
 Iteração:
   □ CONTEXT.md atualizado com o que foi implementado
   □ Decisões novas registradas
+  □ task.md atualizado com progresso da feature
+  □ handoff.md atualizado com o que foi feito nesta sessão
 ```
 
 ---
@@ -462,6 +468,8 @@ Agente 1 — Arquiteto
 Agente 2 — Backend
         ↓
 Agente 3 — Frontend
+        ↓
+Agente 5 — UX/UI
         ↓
 Agente 4 — Qualidade e Segurança
         ↓
@@ -588,9 +596,44 @@ Entregue ao final:
 
 ---
 
-### Agente 4 — Qualidade e Segurança
+### Agente 5 — UX/UI
 
 **Quando ativar:** após receber o output do Frontend
+
+**Prompt de ativação:**
+```
+Você é o Agente UX/UI. Siga o arquivo agent-5-uxui.md.
+
+Recebido do Frontend: [colar output do Agente 3]
+
+Sua missão:
+1. Auditar cada tela entregue pelo Frontend
+2. Identificar o que é funcional mas pode ser muito melhor
+3. Implementar melhorias de valor visual e experiência
+4. Dashboards com métricas e gráficos relevantes
+5. Listagens com elemento visual por item
+6. Empty states orientados com ação clara
+7. Formulários organizados e intuitivos
+8. Responsividade mobile
+
+Entregue: telas melhoradas + decisões de UX documentadas
+```
+
+**O que o Agente UX/UI entrega:**
+```
+→ Telas revisadas e melhoradas
+→ Dashboards com métricas e gráficos
+→ Listagens com elementos visuais
+→ Empty states orientados
+→ Decisões de UX documentadas
+→ Output pronto para o Agente Qualidade
+```
+
+---
+
+### Agente 4 — Qualidade e Segurança
+
+**Quando ativar:** após receber o output do UX/UI
 
 **Prompt de ativação:**
 ```
@@ -661,8 +704,8 @@ Feature simples (1 tela, CRUD básico):
 
 Feature complexa (regras de negócio elaboradas,
 múltiplos perfis, integrações externas):
-  → Fluxo completo com os 4 agentes
-  → Mais lento, resultado mais sólido e seguro
+  → Fluxo completo com os 5 agentes
+  → Mais lento, resultado mais sólido, seguro e bem acabado
 ```
 
 
@@ -731,7 +774,85 @@ MCPs conectam a IA diretamente às ferramentas do projeto. Com eles os agentes t
 
 
 
+
+---
+
+## PARTE 11 — task.md — Painel de Progresso
+
+A IA mantém um arquivo `task.md` na raiz do projeto durante todo o desenvolvimento. Ele mostra em tempo real o que foi feito, o que está sendo feito e o que falta.
+
+### Legenda
+
+```
+[ ] → Pendente
+[/] → Em andamento
+[x] → Concluído
+[-] → Não se aplica
+```
+
+### Como o percentual é calculado
+
+```
+Tarefas [x] concluídas
+÷ total de tarefas válidas (excluindo [-])
+× 100
+
+Exemplo:
+  Fase com 6 tarefas válidas
+  3 marcadas como [x]
+  = 50%
+```
+
+### Quando a IA atualiza o task.md
+
+```
+→ Ao iniciar qualquer sessão
+→ Ao concluir cada tarefa dentro de uma fase
+→ Ao finalizar cada agente
+→ Ao concluir uma feature completa
+```
+
+### Estrutura de uma feature no task.md
+
+```markdown
+### Feature: [Nome] [0%]
+
+#### Agente 1 — Arquiteto
+- [ ] Regra de negócio validada
+- [ ] Schema definido
+- [ ] Estrutura de pastas definida
+- [ ] Permissões identificadas
+
+#### Agente 2 — Backend
+- [ ] Migration aplicada
+- [ ] types.ts criado
+- [ ] schemas.ts criado
+- [ ] actions.ts criado
+- [ ] hooks/ criado
+
+#### Agente 3 — Frontend
+- [ ] Componentes com 3 estados
+- [ ] Formulários integrados
+- [ ] Rota configurada
+- [ ] Menu atualizado
+
+#### Agente 4 — Qualidade
+- [ ] Segurança verificada
+- [ ] Testes Vitest passando
+- [ ] Teste Playwright escrito
+- [ ] Checklist aprovado
+- [ ] CONTEXT.md atualizado
+- [ ] task.md atualizado
+```
+
+### Regra obrigatória
+
+```
+Nunca entregar output de uma etapa sem antes
+atualizar o task.md com o que foi concluído.
+```
+
 ---
 
 *Cole este arquivo no início de toda sessão de desenvolvimento.*
-*Atualizar o CONTEXT.md ao final de cada sessão.*
+*Atualizar o CONTEXT.md, o task.md e o handoff.md ao final de cada sessão.*

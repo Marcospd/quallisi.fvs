@@ -1,3 +1,4 @@
+import { Bell } from 'lucide-react'
 import { listNotifications } from '@/features/notifications/actions'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
@@ -32,8 +33,9 @@ export default async function NotificationsPage({
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
+                    icon={Bell}
                     title="Nenhuma notificação"
-                    description="Você receberá notificações conforme as atividades ocorrerem"
+                    description="Você receberá notificações sobre inspeções, pendências e aprovações conforme as atividades ocorrerem."
                 />
             ) : (
                 <NotificationsList

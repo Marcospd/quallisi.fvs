@@ -174,3 +174,5 @@ Rodar tudo:      npx vitest run && npx playwright test
 
 *Atualizar ao final de cada sessão de desenvolvimento.*
 *Revisar a stack a cada 3 meses.*
+*O progresso do projeto é acompanhado em tempo real no task.md na raiz do projeto.*
+*A continuidade entre IAs é garantida pelo handoff.md na raiz do projeto.*
