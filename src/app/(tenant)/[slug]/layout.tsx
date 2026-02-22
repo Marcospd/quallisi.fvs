@@ -6,6 +6,7 @@ import { tenants, users } from '@/lib/db/schema'
 import { TenantProvider } from '@/features/tenant/components/tenant-provider'
 import { TenantSidebar } from '@/features/tenant/components/tenant-sidebar'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { TopNav } from '@/components/layout/top-nav'
 
 /**
  * Layout das rotas do tenant.
@@ -69,7 +70,10 @@ export default async function TenantLayout({
                 <TenantSidebar />
                 <SidebarInset>
                     <div className="flex flex-1 flex-col">
-                        {children}
+                        <TopNav />
+                        <main className="flex-1 bg-muted/20">
+                            {children}
+                        </main>
                     </div>
                 </SidebarInset>
             </SidebarProvider>

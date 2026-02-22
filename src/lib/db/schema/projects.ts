@@ -10,6 +10,7 @@ export const projects = pgTable('projects', {
     tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
     address: text('address'),
+    imageUrl: text('image_url'),
     active: boolean('active').notNull().default(true),
     createdAt: timestamp('created_at').defaultNow(),
     updatedAt: timestamp('updated_at').defaultNow(),

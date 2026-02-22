@@ -10,6 +10,17 @@ const baseConfig: NextConfig = {
   // Remover X-Powered-By para não expor framework
   poweredByHeader: false,
 
+  // Configuração global de Imagem Next
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'zjpcvepczrxbcwmjtqmd.supabase.co',
+        port: '',
+      },
+    ],
+  },
+
   // Security headers globais
   async headers() {
     return [

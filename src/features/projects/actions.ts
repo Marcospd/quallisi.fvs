@@ -1,28 +1,54 @@
 'use server'
 
-import { eq, and } from 'drizzle-orm'
+import { eq, and, ilike, count, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { projects } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
-import { createProjectSchema } from './schemas'
+import { createProjectSchema, updateProjectSchema } from './schemas'
 import { logger } from '@/lib/logger'
 
 /**
  * Lista obras do tenant atual.
  * Sempre filtrado por tenantId — isolamento obrigatório.
  */
-export async function listProjects() {
+export async function listProjects(options?: {
+    q?: string
+    page?: number
+    limit?: number
+}) {
     const { tenant } = await getAuthContext()
+    const page = options?.page && options.page > 0 ? options.page : 1
+    const limit = options?.limit && options.limit > 0 ? options.limit : 10
+    const offset = (page - 1) * limit
+    const search = options?.q ? `%${options.q}%` : null
 
     try {
+        const filters = [eq(projects.tenantId, tenant.id)]
+        if (search) {
+            filters.push(ilike(projects.name, search))
+        }
+
+        const queryCount = await db
+            .select({ count: count() })
+            .from(projects)
+            .where(and(...filters))
+            .execute()
+
+        const totalItems = queryCount[0]?.count || 0
+
         const result = await db
             .select()
             .from(projects)
-            .where(eq(projects.tenantId, tenant.id))
+            .where(and(...filters))
+            .limit(limit)
+            .offset(offset)
             .orderBy(projects.name)
 
-        return { data: result }
+        return {
+            data: result,
+            meta: { totalItems, page, limit }
+        }
     } catch (err) {
         logger.error({ err, tenantId: tenant.id }, 'Erro ao listar obras')
         return { error: 'Erro ao carregar obras' }
@@ -52,6 +78,7 @@ export async function createProject(input: unknown) {
                 tenantId: tenant.id,
                 name: parsed.data.name,
                 address: parsed.data.address || null,
+                imageUrl: parsed.data.imageUrl || null,
             })
             .returning()
 
@@ -107,5 +134,47 @@ export async function toggleProjectActive(projectId: string) {
     } catch (err) {
         logger.error({ err, projectId }, 'Erro ao alterar obra')
         return { error: 'Erro ao alterar obra' }
+    }
+}
+
+/**
+ * Atualiza uma obra existente.
+ */
+export async function updateProject(projectId: string, input: unknown) {
+    const { user, tenant } = await getAuthContext()
+
+    if (user.role !== 'admin') {
+        return { error: 'Sem permissão para editar obras' }
+    }
+
+    const parsed = updateProjectSchema.safeParse(input)
+    if (!parsed.success) {
+        return { error: parsed.error.flatten() }
+    }
+
+    const updateData: Record<string, any> = { updatedAt: new Date() }
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name
+    if (parsed.data.address !== undefined) updateData.address = parsed.data.address
+    if (parsed.data.imageUrl !== undefined) updateData.imageUrl = parsed.data.imageUrl
+
+    try {
+        const [project] = await db
+            .update(projects)
+            .set(updateData)
+            .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenant.id)))
+            .returning()
+
+        if (!project) return { error: 'Obra não encontrada' }
+
+        logger.info(
+            { userId: user.id, tenantId: tenant.id, projectId, action: 'project.updated' },
+            'Obra atualizada'
+        )
+
+        revalidatePath(`/${tenant.slug}/projects`)
+        return { data: project }
+    } catch (err) {
+        logger.error({ err, tenantId: tenant.id, projectId }, 'Erro ao atualizar obra')
+        return { error: 'Erro ao atualizar obra' }
     }
 }

@@ -12,10 +12,12 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { StatusBadge } from '@/components/status-badge'
-import { Power, Building2, MapPin } from 'lucide-react'
+import { Power, Building2, MapPin, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 import type { InferSelectModel } from 'drizzle-orm'
 import type { projects } from '@/lib/db/schema/projects'
+import { EditProjectDialog } from './edit-project-dialog'
 
 type Project = InferSelectModel<typeof projects>
 
@@ -24,6 +26,7 @@ type Project = InferSelectModel<typeof projects>
  */
 export function ProjectsTable({ projects: data }: { projects: Project[] }) {
     const [pendingId, setPendingId] = useState<string | null>(null)
+    const [editingProject, setEditingProject] = useState<Project | null>(null)
 
     async function handleToggle(projectId: string) {
         setPendingId(projectId)
@@ -54,12 +57,28 @@ export function ProjectsTable({ projects: data }: { projects: Project[] }) {
                 </TableHeader>
                 <TableBody>
                     {data.map((project) => (
-                        <TableRow key={project.id}>
+                        <TableRow
+                            key={project.id}
+                            onDoubleClick={() => setEditingProject(project)}
+                            className="cursor-pointer"
+                        >
                             <TableCell>
                                 <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-                                        <Building2 className="h-5 w-5" />
-                                    </div>
+                                    {project.imageUrl ? (
+                                        <div className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-lg border">
+                                            <Image
+                                                src={project.imageUrl}
+                                                alt={`Capa da obra ${project.name}`}
+                                                fill
+                                                sizes="40px"
+                                                className="object-cover"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                                            <Building2 className="h-5 w-5" />
+                                        </div>
+                                    )}
                                     <div>
                                         <p className="font-medium">{project.name}</p>
                                     </div>
@@ -85,17 +104,31 @@ export function ProjectsTable({ projects: data }: { projects: Project[] }) {
                                 <Button
                                     variant="ghost"
                                     size="icon"
+                                    onClick={() => setEditingProject(project)}
+                                    title="Editar obra"
+                                >
+                                    <Edit2 className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => handleToggle(project.id)}
                                     disabled={pendingId === project.id}
                                     title={project.active ? 'Desativar' : 'Ativar'}
                                 >
-                                    <Power className={`h-4 w-4 ${project.active ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                                    <Power className={`h-4 w-4 ${project.active ? 'text emerald-500' : 'text-muted-foreground'}`} />
                                 </Button>
                             </TableCell>
                         </TableRow>
                     ))}
                 </TableBody>
             </Table>
-        </div>
+
+            <EditProjectDialog
+                project={editingProject}
+                open={!!editingProject}
+                onOpenChange={(open) => !open && setEditingProject(null)}
+            />
+        </div >
     )
 }

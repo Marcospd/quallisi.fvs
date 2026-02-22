@@ -32,6 +32,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import { updateMemberRole, toggleMemberActive } from '../actions'
+import { EditTeamDialog } from './edit-team-dialog'
+import { Edit2 } from 'lucide-react'
 
 interface TeamMember {
     id: string
@@ -56,6 +58,7 @@ const roleConfig: Record<string, { label: string; icon: React.ReactNode; variant
 
 export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
     const [updating, setUpdating] = useState<string | null>(null)
+    const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
 
     async function handleRoleChange(userId: string, role: string) {
         setUpdating(userId)
@@ -109,7 +112,11 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
                         const isDisabled = updating === member.id
 
                         return (
-                            <TableRow key={member.id} className={!member.active ? 'opacity-50' : ''}>
+                            <TableRow
+                                key={member.id}
+                                className={`${!member.active ? 'opacity-50' : ''} ${isAdmin && !isSelf ? 'cursor-pointer hover:bg-muted/30' : ''}`}
+                                onDoubleClick={() => isAdmin && !isSelf && setEditingMember(member)}
+                            >
                                 <TableCell className="font-medium">
                                     {member.name}
                                     {isSelf && (
@@ -118,27 +125,10 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
                                 </TableCell>
                                 <TableCell>{member.email}</TableCell>
                                 <TableCell>
-                                    {isAdmin && !isSelf ? (
-                                        <Select
-                                            value={member.role}
-                                            onValueChange={(val) => handleRoleChange(member.id, val)}
-                                            disabled={isDisabled}
-                                        >
-                                            <SelectTrigger className="w-[160px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="admin">Administrador</SelectItem>
-                                                <SelectItem value="supervisor">Supervisor</SelectItem>
-                                                <SelectItem value="inspetor">Inspetor</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <Badge variant={role.variant} className="gap-1">
-                                            {role.icon}
-                                            {role.label}
-                                        </Badge>
-                                    )}
+                                    <Badge variant={role.variant} className="gap-1">
+                                        {role.icon}
+                                        {role.label}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant={member.active ? 'default' : 'destructive'}>
@@ -148,42 +138,56 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
                                 {isAdmin && (
                                     <TableCell>
                                         {!isSelf && (
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        disabled={isDisabled}
-                                                    >
-                                                        {member.active ? (
-                                                            <UserX className="mr-1 h-4 w-4" />
-                                                        ) : (
-                                                            <UserCheck className="mr-1 h-4 w-4" />
-                                                        )}
-                                                        {member.active ? 'Desativar' : 'Reativar'}
-                                                    </Button>
-                                                </AlertDialogTrigger>
-                                                <AlertDialogContent>
-                                                    <AlertDialogHeader>
-                                                        <AlertDialogTitle>
-                                                            {member.active ? 'Desativar membro?' : 'Reativar membro?'}
-                                                        </AlertDialogTitle>
-                                                        <AlertDialogDescription>
-                                                            {member.active
-                                                                ? `${member.name} não conseguirá mais acessar o sistema.`
-                                                                : `${member.name} poderá acessar o sistema novamente.`}
-                                                        </AlertDialogDescription>
-                                                    </AlertDialogHeader>
-                                                    <AlertDialogFooter>
-                                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                                        <AlertDialogAction
-                                                            onClick={() => handleToggleActive(member.id, member.active)}
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        setEditingMember(member)
+                                                    }}
+                                                    disabled={isDisabled}
+                                                    title="Editar membro"
+                                                >
+                                                    <Edit2 className="h-4 w-4 text-muted-foreground" />
+                                                </Button>
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            disabled={isDisabled}
                                                         >
-                                                            Confirmar
-                                                        </AlertDialogAction>
-                                                    </AlertDialogFooter>
-                                                </AlertDialogContent>
-                                            </AlertDialog>
+                                                            {member.active ? (
+                                                                <UserX className="mr-1 h-4 w-4" />
+                                                            ) : (
+                                                                <UserCheck className="mr-1 h-4 w-4" />
+                                                            )}
+                                                            {member.active ? 'Desativar' : 'Reativar'}
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>
+                                                                {member.active ? 'Desativar membro?' : 'Reativar membro?'}
+                                                            </AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                {member.active
+                                                                    ? `${member.name} não conseguirá mais acessar o sistema.`
+                                                                    : `${member.name} poderá acessar o sistema novamente.`}
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                onClick={() => handleToggleActive(member.id, member.active)}
+                                                            >
+                                                                Confirmar
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
                                         )}
                                     </TableCell>
                                 )}
@@ -192,6 +196,13 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
                     })}
                 </TableBody>
             </Table>
+
+            <EditTeamDialog
+                member={editingMember}
+                open={!!editingMember}
+                onOpenChange={(open) => !open && setEditingMember(null)}
+                currentUserId={currentUserId}
+            />
         </div>
     )
 }

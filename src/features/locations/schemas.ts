@@ -16,4 +16,6 @@ export const createLocationSchema = z.object({
         .or(z.literal('')),
 })
 
+export const updateLocationSchema = createLocationSchema.partial()
+
 export type CreateLocationInput = z.infer<typeof createLocationSchema>

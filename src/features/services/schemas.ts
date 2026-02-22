@@ -17,5 +17,7 @@ export const addCriterionSchema = z.object({
     sortOrder: z.number().int().min(0).optional(),
 })
 
+export const updateServiceSchema = createServiceSchema.partial()
+
 export type CreateServiceInput = z.infer<typeof createServiceSchema>
 export type AddCriterionInput = z.infer<typeof addCriterionSchema>

@@ -97,15 +97,15 @@ export function PlanningPageClient({ projects }: PlanningPageClientProps) {
         try {
             const [planningResult, locationsResult, servicesResult] = await Promise.all([
                 listPlanningItems(selectedProjectId, referenceMonth),
-                listLocations(selectedProjectId),
+                listLocations({ projectId: selectedProjectId, limit: 1000 }),
                 listServices(),
             ])
 
             if (planningResult.data) setPlanningData(planningResult.data as PlanningDataItem[])
             if (locationsResult.data) {
-                // locationsResult retorna array simples quando projectId é passado
+                // Mapear pq action retorna { location, project } e nós queremos só location
                 setLocationsList(
-                    (locationsResult.data as LocationItem[]).filter((l) => l.active)
+                    (locationsResult.data.map(i => i.location) as LocationItem[]).filter((l) => l.active)
                 )
             }
             if (servicesResult.data) {

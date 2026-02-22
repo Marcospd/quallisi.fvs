@@ -1,20 +1,41 @@
 'use server'
 
-import { eq, and, asc, count } from 'drizzle-orm'
+import { eq, and, asc, count, ilike, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { services, criteria } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
 import { logger } from '@/lib/logger'
-import { createServiceSchema, addCriterionSchema } from './schemas'
+import { createServiceSchema, updateServiceSchema, addCriterionSchema } from './schemas'
 
 /**
  * Lista serviços do tenant com contagem de critérios.
  */
-export async function listServices() {
+export async function listServices(options?: {
+    q?: string
+    page?: number
+    limit?: number
+}) {
     const { tenant } = await getAuthContext()
+    const page = options?.page && options.page > 0 ? options.page : 1
+    const limit = options?.limit && options.limit > 0 ? options.limit : 10
+    const offset = (page - 1) * limit
+    const search = options?.q ? `%${options.q}%` : null
 
     try {
+        const filters = [eq(services.tenantId, tenant.id)]
+        if (search) {
+            filters.push(ilike(services.name, search))
+        }
+
+        const queryCount = await db
+            .select({ count: count() })
+            .from(services)
+            .where(and(...filters))
+            .execute()
+
+        const totalItems = queryCount[0]?.count || 0
+
         const result = await db
             .select({
                 id: services.id,
@@ -28,11 +49,16 @@ export async function listServices() {
             })
             .from(services)
             .leftJoin(criteria, eq(criteria.serviceId, services.id))
-            .where(eq(services.tenantId, tenant.id))
+            .where(and(...filters))
             .groupBy(services.id)
             .orderBy(services.name)
+            .limit(limit)
+            .offset(offset)
 
-        return { data: result }
+        return {
+            data: result,
+            meta: { totalItems, page, limit }
+        }
     } catch (err) {
         logger.error({ err, tenantId: tenant.id }, 'Erro ao listar serviços')
         return { error: 'Erro ao carregar serviços' }
@@ -94,6 +120,39 @@ export async function createService(input: unknown) {
     } catch (err) {
         logger.error({ err }, 'Erro ao criar serviço')
         return { error: 'Erro ao criar serviço' }
+    }
+}
+
+/**
+ * Atualiza um serviço no tenant.
+ */
+export async function updateService(serviceId: string, input: unknown) {
+    const { user, tenant } = await getAuthContext()
+
+    if (user.role !== 'admin') return { error: 'Sem permissão para editar serviços' }
+
+    const parsed = updateServiceSchema.safeParse(input)
+    if (!parsed.success) return { error: parsed.error.flatten() }
+
+    const updateData: Record<string, any> = { updatedAt: new Date() }
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name
+    if (parsed.data.description !== undefined) updateData.description = parsed.data.description
+
+    try {
+        const [service] = await db
+            .update(services)
+            .set(updateData)
+            .where(and(eq(services.id, serviceId), eq(services.tenantId, tenant.id)))
+            .returning()
+
+        if (!service) return { error: 'Serviço não encontrado' }
+
+        logger.info({ userId: user.id, tenantId: tenant.id, serviceId, action: 'service.updated' }, 'Serviço atualizado')
+        revalidatePath(`/${tenant.slug}/services`)
+        return { data: service }
+    } catch (err) {
+        logger.error({ err, tenantId: tenant.id, serviceId }, 'Erro ao atualizar serviço')
+        return { error: 'Erro ao atualizar serviço' }
     }
 }
 

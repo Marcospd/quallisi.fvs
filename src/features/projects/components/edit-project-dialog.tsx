@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { createProjectSchema, type CreateProjectInput } from '../schemas'
-import { createProject } from '../actions'
+import { updateProject } from '../actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -14,7 +14,6 @@ import {
     DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from '@/components/ui/dialog'
 import {
     Form,
@@ -27,20 +26,46 @@ import {
 import { ImageUpload } from '@/components/image-upload'
 import { uploadProjectCover } from '../actions-upload'
 import { toast } from 'sonner'
+import type { InferSelectModel } from 'drizzle-orm'
+import type { projects } from '@/lib/db/schema/projects'
+
+type Project = InferSelectModel<typeof projects>
+
+interface EditProjectDialogProps {
+    project: Project | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}
 
 /**
- * Dialog para criar uma nova obra.
+ * Dialog para editar uma obra existente.
  */
-export function CreateProjectDialog({ children }: { children: React.ReactNode }) {
-    const [open, setOpen] = useState(false)
+export function EditProjectDialog({ project, open, onOpenChange }: EditProjectDialogProps) {
     const [isPending, setIsPending] = useState(false)
 
     const form = useForm<CreateProjectInput>({
         resolver: zodResolver(createProjectSchema),
-        defaultValues: { name: '', address: '', imageUrl: null },
+        defaultValues: {
+            name: '',
+            address: '',
+            imageUrl: null,
+        },
     })
 
+    // Preenche o form quando a obra muda
+    useEffect(() => {
+        if (project && open) {
+            form.reset({
+                name: project.name,
+                address: project.address || '',
+                imageUrl: project.imageUrl || null,
+            })
+        }
+    }, [project, open, form])
+
     async function onSubmit(data: CreateProjectInput) {
+        if (!project) return
+
         setIsPending(true)
         try {
             let finalImageUrl = data.imageUrl
@@ -62,29 +87,27 @@ export function CreateProjectDialog({ children }: { children: React.ReactNode })
                 finalImageUrl = uploadRes.url
             }
 
-            const result = await createProject({ ...data, imageUrl: finalImageUrl })
+            const result = await updateProject(project.id, { ...data, imageUrl: finalImageUrl })
             if (result?.error) {
                 const msg = typeof result.error === 'string' ? result.error : 'Verifique os dados'
                 toast.error(msg)
             } else {
-                toast.success('Obra criada com sucesso!')
-                form.reset()
-                setOpen(false)
+                toast.success('Obra atualizada com sucesso!')
+                onOpenChange(false)
             }
         } catch {
-            toast.error('Erro ao criar obra')
+            toast.error('Erro ao editar obra')
         } finally {
             setIsPending(false)
         }
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>{children}</DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Nova Obra</DialogTitle>
-                    <DialogDescription>Cadastre uma nova obra para sua construtora</DialogDescription>
+                    <DialogTitle>Editar Obra</DialogTitle>
+                    <DialogDescription>Edite as informações da obra selecionada</DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -131,16 +154,21 @@ export function CreateProjectDialog({ children }: { children: React.ReactNode })
                                 </FormItem>
                             )}
                         />
-                        <Button type="submit" className="w-full" disabled={isPending}>
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Criando...
-                                </>
-                            ) : (
-                                'Criar Obra'
-                            )}
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+                                Cancelar
+                            </Button>
+                            <Button type="submit" disabled={isPending}>
+                                {isPending ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Salvando...
+                                    </>
+                                ) : (
+                                    'Salvar Alterações'
+                                )}
+                            </Button>
+                        </div>
                     </form>
                 </Form>
             </DialogContent>

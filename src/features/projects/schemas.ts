@@ -13,6 +13,7 @@ export const createProjectSchema = z.object({
         .max(500, 'Endereço deve ter no máximo 500 caracteres')
         .optional()
         .or(z.literal('')),
+    imageUrl: z.string().url('URL da imagem inválida').optional().nullable(),
 })
 
 export const updateProjectSchema = createProjectSchema.partial()

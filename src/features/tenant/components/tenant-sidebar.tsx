@@ -70,7 +70,7 @@ export function TenantSidebar() {
             <SidebarHeader className="border-b px-6 py-4">
                 <h2 className="text-lg font-bold truncate">{tenant.name}</h2>
                 <p className="text-xs text-muted-foreground truncate">
-                    {user.name} · {user.role}
+                    Painel Operacional
                 </p>
             </SidebarHeader>
 
@@ -131,19 +131,6 @@ export function TenantSidebar() {
                     </SidebarGroup>
                 )}
             </SidebarContent>
-
-            <SidebarFooter className="border-t p-4">
-                <form action={logout}>
-                    <Button
-                        type="submit"
-                        variant="ghost"
-                        className="w-full justify-start text-muted-foreground"
-                    >
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Sair
-                    </Button>
-                </form>
-            </SidebarFooter>
         </Sidebar>
     )
 }

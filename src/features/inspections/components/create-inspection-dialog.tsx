@@ -98,9 +98,9 @@ export function CreateInspectionDialog({
             setSelectedLocation('')
             return
         }
-        listLocations(selectedProject).then((result) => {
+        listLocations({ projectId: selectedProject, limit: 1000 }).then((result) => {
             if (result.data) {
-                setLocationsList((result.data as Location[]).filter((l) => l.active))
+                setLocationsList((result.data.map(d => d.location) as Location[]).filter((l) => l.active))
             }
         })
     }, [selectedProject])
