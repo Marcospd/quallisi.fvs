@@ -66,7 +66,7 @@ export default async function TeamPage({
             ) : (
                 <div className="flex flex-col gap-4">
                     <TeamTable
-                        members={result.data as any}
+                        members={result.data as unknown as any}
                         currentUserId={auth.user.id}
                         isAdmin={isAdmin}
                     />

@@ -300,7 +300,7 @@ export async function updateMember(userId: string, input: unknown) {
 
         if (!member) return { error: 'Membro não encontrado' }
 
-        const updateData: Record<string, any> = { updatedAt: new Date() }
+        const updateData: Record<string, unknown> = { updatedAt: new Date() }
         if (parsed.data.name !== undefined) updateData.name = parsed.data.name
         if (parsed.data.role !== undefined) updateData.role = parsed.data.role
 

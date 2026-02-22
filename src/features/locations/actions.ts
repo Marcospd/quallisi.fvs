@@ -197,7 +197,7 @@ export async function updateLocation(locationId: string, input: unknown) {
 
         if (!project) return { error: 'Obra não encontrada no tenant atual' }
 
-        const updateData: Record<string, any> = { updatedAt: new Date() }
+        const updateData: Record<string, unknown> = { updatedAt: new Date() }
         if (parsed.data.name !== undefined) updateData.name = parsed.data.name
         if (parsed.data.description !== undefined) updateData.description = parsed.data.description
         if (parsed.data.projectId !== undefined) updateData.projectId = parsed.data.projectId

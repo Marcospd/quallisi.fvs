@@ -71,7 +71,7 @@ export default async function LocationsPage({
             ) : (
                 <div className="flex flex-col gap-4">
                     <LocationsTable
-                        data={locationsResult.data as any}
+                        data={locationsResult.data.map(d => d.location as unknown as any)}
                         projects={projectsResult.data || []}
                     />
                     {locationsResult.meta && locationsResult.data.length > 0 && (
