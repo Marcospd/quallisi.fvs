@@ -11,13 +11,9 @@ import {
     CalendarDays,
     AlertTriangle,
     BarChart3,
-    Bell,
     Users,
-    LogOut,
-    Settings,
 } from 'lucide-react'
 import { useTenant } from '@/features/tenant/components/tenant-provider'
-import { logout } from '@/features/auth/actions'
 import {
     Sidebar,
     SidebarContent,
@@ -28,9 +24,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarFooter,
 } from '@/components/ui/sidebar'
-import { Button } from '@/components/ui/button'
 
 /**
  * Sidebar do Painel Tenant (construtora).
@@ -50,7 +44,6 @@ export function TenantSidebar() {
     const qualityItems = [
         { title: 'Pendências', href: `${base}/issues`, icon: AlertTriangle },
         { title: 'Estatísticas', href: `${base}/stats`, icon: BarChart3 },
-        { title: 'Notificações', href: `${base}/notifications`, icon: Bell },
     ]
 
     const configItems = [

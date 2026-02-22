@@ -1,8 +1,11 @@
 'use client'
 
-import { Bell, Search, LayoutDashboard, ChevronRight } from 'lucide-react'
+import { Bell, Search, LayoutDashboard } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { Fragment } from 'react'
+import { Fragment, useEffect, useState } from 'react'
+import Link from 'next/link'
+
+import { getUnreadCount } from '@/features/notifications/actions'
 
 import { useTenant } from '@/features/tenant/components/tenant-provider'
 import {
@@ -30,6 +33,14 @@ import { logout } from '@/features/auth/actions'
 export function TopNav() {
     const { tenant, user } = useTenant()
     const pathname = usePathname()
+    const [unreadCount, setUnreadCount] = useState(0)
+
+    useEffect(() => {
+        // Busca simples inicial
+        getUnreadCount().then((res) => {
+            if (res.data) setUnreadCount(res.data)
+        })
+    }, [])
 
     // Gerar breadcrumbs rudimentar baseado na rota
     const paths = pathname.split('/').filter(Boolean)
@@ -101,13 +112,17 @@ export function TopNav() {
                         </div>
                     </form>
 
-                    <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
-                        <Bell className="h-4 w-4" />
-                        <span className="absolute right-1 top-1 flex h-2 w-2">
-                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
-                        </span>
-                    </Button>
+                    <Link href={`/${tenant.slug}/notifications`}>
+                        <Button variant="ghost" size="icon" className="relative h-8 w-8 rounded-full">
+                            <Bell className="h-4 w-4" />
+                            {unreadCount > 0 && (
+                                <span className="absolute right-1 top-1 flex h-2 w-2">
+                                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
+                                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
+                                </span>
+                            )}
+                        </Button>
+                    </Link>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>

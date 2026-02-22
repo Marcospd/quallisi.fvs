@@ -156,6 +156,18 @@
 | 2026-02-22 | **Fase 4 pré-deploy**: Sentry configurado (client/server/edge + global-error.tsx + withSentryConfig), Rate limiting in-memory (login 5/min, convite 10/min), Script RLS SQL (15 tabelas + Storage bucket), Validação de env vars com Zod |
 | 2026-02-22 | **Migration + RLS aplicados**: .env.local criado, migration Drizzle rodada (15 tabelas), políticas RLS aplicadas (15 tabelas + Storage) |
 
+| 2026-02-22 | **Migration + RLS aplicados**: .env.local criado, migration Drizzle rodada (15 tabelas), políticas RLS aplicadas (15 tabelas + Storage) |
+
 ---
+
+## PRÓXIMAS ETAPAS PENDENTES
+
+- [/] UX/UI: **Nova Listagem de Obras em Cards**
+  - [ ] Substituir tabela por grid de cards (`ProjectCard`).
+  - [ ] Imagem de capa no topo do card com fallback.
+  - [ ] Tag flutuante de progresso da obra (ex: 75% Concluído).
+  - [ ] Barra de progresso de Qualidade (ex: 92% Aprovado).
+  - [ ] Título (Nome da Obra) e Endereço.
+  - [ ] Ações na base (Relatórios, Gerenciar) e Menu de opções (3 pontos).
 
 > *Documento vivo — atualizar a cada sessão de trabalho.*

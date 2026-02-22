@@ -1,6 +1,6 @@
 import { Plus, Building2 } from 'lucide-react'
 import { listProjects } from '@/features/projects/actions'
-import { ProjectsTable } from '@/features/projects/components/projects-table'
+import { ProjectCard } from '@/features/projects/components/project-card'
 import { CreateProjectDialog } from '@/features/projects/components/create-project-dialog'
 import { DataTableSearch } from '@/components/data-table-search'
 import { DataTablePagination } from '@/components/data-table-pagination'
@@ -66,7 +66,11 @@ export default async function ProjectsPage({
                 />
             ) : (
                 <div className="flex flex-col gap-4">
-                    <ProjectsTable projects={result.data} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {result.data.map((project) => (
+                            <ProjectCard key={project.id} project={project} />
+                        ))}
+                    </div>
                     {result.meta && result.data.length > 0 && (
                         <DataTablePagination
                             totalItems={result.meta.totalItems}
