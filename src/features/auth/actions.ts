@@ -4,8 +4,8 @@ import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
-import { users, tenants, systemUsers } from '@/lib/db/schema'
-import { loginSchema, registerSchema } from './schemas'
+import { users, tenants, systemUsers, plans, subscriptions } from '@/lib/db/schema'
+import { loginSchema, tenantRegisterSchema } from './schemas'
 import { logger } from '@/lib/logger'
 import { loginLimiter } from '@/lib/rate-limit'
 import type { AuthContext, SystemAuthContext } from './types'
@@ -211,6 +211,106 @@ export async function systemLogin(input: unknown) {
         if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw err
         logger.error({ err }, '🚨 Fatal server error in systemLogin action')
         return { error: 'Instabilidade de conexão no servidor.' }
+    }
+}
+
+/**
+ * Cadastro público de empresa (construtora).
+ * Cria auth user, tenant, user admin e subscription.
+ */
+export async function register(input: unknown) {
+    try {
+        const parsed = tenantRegisterSchema.safeParse(input)
+        if (!parsed.success) {
+            return { error: parsed.error.flatten() }
+        }
+
+        const { companyName, planId, name, email, password } = parsed.data
+
+        // Verificar se o plano existe e está ativo
+        const [plan] = await db
+            .select()
+            .from(plans)
+            .where(eq(plans.id, planId))
+            .limit(1)
+
+        if (!plan || !plan.active) {
+            return { error: 'Plano selecionado não está disponível' }
+        }
+
+        // Gerar slug a partir do nome da empresa
+        const slug = companyName
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .trim()
+
+        // Verificar se slug já existe
+        const [existingTenant] = await db
+            .select()
+            .from(tenants)
+            .where(eq(tenants.slug, slug))
+            .limit(1)
+
+        if (existingTenant) {
+            return { error: 'Já existe uma empresa cadastrada com esse nome' }
+        }
+
+        // Criar auth user no Supabase
+        const supabase = await createClient()
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email,
+            password,
+        })
+
+        if (authError || !authData.user) {
+            logger.error({ email, error: authError }, 'Falha ao criar auth user')
+            if (authError?.message?.includes('already registered')) {
+                return { error: 'Este e-mail já está cadastrado' }
+            }
+            return { error: 'Erro ao criar conta. Tente novamente.' }
+        }
+
+        const authId = authData.user.id
+
+        // Criar tenant
+        const [newTenant] = await db
+            .insert(tenants)
+            .values({ name: companyName, slug })
+            .returning()
+
+        // Criar user admin vinculado ao tenant
+        await db.insert(users).values({
+            authId,
+            tenantId: newTenant.id,
+            name,
+            email,
+            role: 'admin',
+        })
+
+        // Criar subscription com período de 30 dias
+        const now = new Date()
+        const periodEnd = new Date(now)
+        periodEnd.setDate(periodEnd.getDate() + 30)
+
+        await db.insert(subscriptions).values({
+            tenantId: newTenant.id,
+            planId,
+            currentPeriodStart: now,
+            currentPeriodEnd: periodEnd,
+        })
+
+        logger.info({ tenantId: newTenant.id, slug, email }, 'Nova empresa cadastrada')
+
+        redirect(`/${slug}`)
+    } catch (err) {
+        const e = err as { digest?: string; message?: string }
+        if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw err
+        logger.error({ err }, '🚨 Fatal server error in register action')
+        return { error: 'Erro interno ao cadastrar empresa. Tente novamente.' }
     }
 }
 

@@ -16,19 +16,27 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col gap-4 justify-center items-center">
           <Link
-            href="/login"
-            className="inline-flex items-center justify-center px-8 py-3 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+            href="/register"
+            className="inline-flex items-center justify-center px-8 py-3 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-500 transition-colors w-full sm:w-auto"
           >
-            Acessar Painel
+            Cadastrar Empresa
           </Link>
-          <Link
-            href="/system/login"
-            className="inline-flex items-center justify-center px-8 py-3 text-sm font-medium text-slate-300 border border-slate-600 rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            Painel Sistema
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center px-8 py-3 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Acessar Painel
+            </Link>
+            <Link
+              href="/system/login"
+              className="inline-flex items-center justify-center px-8 py-3 text-sm font-medium text-slate-300 border border-slate-600 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Painel Sistema
+            </Link>
+          </div>
         </div>
 
         <p className="text-xs text-slate-500">
