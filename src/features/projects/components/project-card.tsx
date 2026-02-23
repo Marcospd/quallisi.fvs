@@ -10,6 +10,7 @@ import type { InferSelectModel } from 'drizzle-orm'
 import type { projects } from '@/lib/db/schema/projects'
 import { toggleProjectActive } from '../actions'
 import { EditProjectDialog } from './edit-project-dialog'
+import { useTenant } from '@/features/tenant/components/tenant-provider'
 
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
@@ -36,6 +37,7 @@ interface ProjectCardProps {
 export function ProjectCard({ project, stats }: ProjectCardProps) {
     const [pending, setPending] = useState(false)
     const [editing, setEditing] = useState(false)
+    const { tenant } = useTenant()
 
     // Cálculo real baseado nas métricas vindas do BD (ou mock inicial 0)
     const total = stats?.total || 0
@@ -164,10 +166,11 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                         <FileText className="mr-2 h-3.5 w-3.5" />
                         Relatórios
                     </Button>
-                    {/* Exemplo de link para o Dashboard interno da obra. Substituir href futuramente se existir roteamento de Obra */}
-                    <Button className="w-full text-xs sm:text-sm">
-                        <Settings className="mr-2 h-3.5 w-3.5" />
-                        Gerenciar
+                    <Button asChild className="w-full text-xs sm:text-sm">
+                        <Link href={`/${tenant.slug}/locations?projectId=${project.id}`}>
+                            <Settings className="mr-2 h-3.5 w-3.5" />
+                            Gerenciar
+                        </Link>
                     </Button>
                 </div>
             </div>

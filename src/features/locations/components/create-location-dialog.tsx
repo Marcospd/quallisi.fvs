@@ -40,18 +40,19 @@ type Project = { id: string; name: string }
  * Dialog para criar um novo local de inspeção.
  * Carrega a lista de obras para seleção.
  */
-export function CreateLocationDialog({ children }: { children: React.ReactNode }) {
+export function CreateLocationDialog({ children, defaultProjectId }: { children: React.ReactNode; defaultProjectId?: string }) {
     const [open, setOpen] = useState(false)
     const [isPending, setIsPending] = useState(false)
     const [projectsList, setProjectsList] = useState<Project[]>([])
 
     const form = useForm<CreateLocationInput>({
         resolver: zodResolver(createLocationSchema),
-        defaultValues: { projectId: '', name: '', description: '' },
+        defaultValues: { projectId: defaultProjectId || '', name: '', description: '' },
     })
 
     useEffect(() => {
         if (open) {
+            form.reset({ projectId: defaultProjectId || '', name: '', description: '' })
             listProjects().then((result) => {
                 if (result.data) {
                     setProjectsList(
@@ -62,7 +63,7 @@ export function CreateLocationDialog({ children }: { children: React.ReactNode }
                 }
             })
         }
-    }, [open])
+    }, [open, defaultProjectId, form])
 
     async function onSubmit(data: CreateLocationInput) {
         setIsPending(true)

@@ -3,6 +3,7 @@ import { listLocations } from '@/features/locations/actions'
 import { listProjects } from '@/features/projects/actions'
 import { CreateLocationDialog } from '@/features/locations/components/create-location-dialog'
 import { LocationsTable } from '@/features/locations/components/locations-table'
+import { LocationsProjectFilter } from '@/features/locations/components/locations-project-filter'
 import { DataTableSearch } from '@/components/data-table-search'
 import { DataTablePagination } from '@/components/data-table-pagination'
 import { EmptyState } from '@/components/empty-state'
@@ -26,11 +27,17 @@ export default async function LocationsPage({
     const page = typeof sp.page === 'string' ? parseInt(sp.page, 10) : 1
     const limit = typeof sp.limit === 'string' ? parseInt(sp.limit, 10) : 10
     const q = typeof sp.q === 'string' ? sp.q : undefined
+    const projectId = typeof sp.projectId === 'string' ? sp.projectId : undefined
 
     const [locationsResult, projectsResult] = await Promise.all([
-        listLocations({ page, limit, q }),
-        listProjects({ limit: 1000 }) // Busca rápida de todos os projetos para o Dialog Select
+        listLocations({ page, limit, q, projectId }),
+        listProjects({ limit: 1000 })
     ])
+
+    // Encontra o nome da obra filtrada para exibir no indicador
+    const filteredProject = projectId
+        ? projectsResult.data?.find(p => p.project.id === projectId)?.project
+        : null
 
     return (
         <div className="space-y-6 p-6">
@@ -38,12 +45,15 @@ export default async function LocationsPage({
                 <div>
                     <h1 className="text-2xl font-bold">Locais de Inspeção</h1>
                     <p className="text-muted-foreground">
-                        Pontos físicos dentro das obras onde as inspeções são realizadas
+                        {filteredProject
+                            ? `Locais da obra: ${filteredProject.name}`
+                            : 'Pontos físicos dentro das obras onde as inspeções são realizadas'
+                        }
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
                     <DataTableSearch placeholder="Buscar local..." />
-                    <CreateLocationDialog>
+                    <CreateLocationDialog defaultProjectId={projectId}>
                         <Button>
                             <Plus className="h-4 w-4 mr-2" />
                             Novo Local
@@ -52,15 +62,22 @@ export default async function LocationsPage({
                 </div>
             </div>
 
+            {filteredProject && (
+                <LocationsProjectFilter projectName={filteredProject.name} />
+            )}
+
             {locationsResult.error ? (
                 <ErrorState description={locationsResult.error} />
             ) : !locationsResult.data || locationsResult.data.length === 0 ? (
                 <EmptyState
                     icon={MapPin}
                     title="Nenhum local cadastrado"
-                    description="Cadastre pontos de inspeção dentro das suas obras para poder criar FVS."
+                    description={filteredProject
+                        ? `Nenhum local cadastrado para a obra "${filteredProject.name}".`
+                        : 'Cadastre pontos de inspeção dentro das suas obras para poder criar FVS.'
+                    }
                     action={
-                        <CreateLocationDialog>
+                        <CreateLocationDialog defaultProjectId={projectId}>
                             <Button>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Novo Local
