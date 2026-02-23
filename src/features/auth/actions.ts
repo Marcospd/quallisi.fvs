@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { users, tenants, systemUsers, plans, subscriptions } from '@/lib/db/schema'
-import { loginSchema, tenantRegisterSchema } from './schemas'
+import { loginSchema, tenantRegisterSchema, forgotPasswordSchema, resetPasswordSchema } from './schemas'
 import { logger } from '@/lib/logger'
 import { loginLimiter } from '@/lib/rate-limit'
 import type { AuthContext, SystemAuthContext } from './types'
@@ -311,6 +311,66 @@ export async function register(input: unknown) {
         if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw err
         logger.error({ err }, '🚨 Fatal server error in register action')
         return { error: 'Erro interno ao cadastrar empresa. Tente novamente.' }
+    }
+}
+
+/**
+ * Envia link de recuperação de senha por e-mail.
+ */
+export async function forgotPassword(input: unknown) {
+    try {
+        const parsed = forgotPasswordSchema.safeParse(input)
+        if (!parsed.success) {
+            return { error: parsed.error.flatten() }
+        }
+
+        const supabase = await createClient()
+        const redirectTo = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback?type=recovery`
+
+        const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+            redirectTo,
+        })
+
+        if (error) {
+            logger.error({ email: parsed.data.email, error }, 'Erro ao enviar email de recuperação')
+            return { error: 'Erro ao enviar e-mail. Tente novamente.' }
+        }
+
+        // Sempre retorna sucesso para não expor se o email existe
+        return { success: true }
+    } catch (err) {
+        logger.error({ err }, '🚨 Fatal server error in forgotPassword action')
+        return { error: 'Erro interno. Tente novamente.' }
+    }
+}
+
+/**
+ * Redefine a senha do usuário autenticado via link de recuperação.
+ */
+export async function resetPassword(input: unknown) {
+    try {
+        const parsed = resetPasswordSchema.safeParse(input)
+        if (!parsed.success) {
+            return { error: parsed.error.flatten() }
+        }
+
+        const supabase = await createClient()
+        const { error } = await supabase.auth.updateUser({
+            password: parsed.data.password,
+        })
+
+        if (error) {
+            logger.error({ error }, 'Erro ao redefinir senha')
+            return { error: 'Erro ao redefinir senha. O link pode ter expirado.' }
+        }
+
+        await supabase.auth.signOut()
+        redirect('/login?reset=success')
+    } catch (err) {
+        const e = err as { digest?: string; message?: string }
+        if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw err
+        logger.error({ err }, '🚨 Fatal server error in resetPassword action')
+        return { error: 'Erro interno. Tente novamente.' }
     }
 }
 

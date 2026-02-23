@@ -4,9 +4,8 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
-import Link from 'next/link'
-import { loginSchema, type LoginInput } from '../schemas'
-import { login } from '../actions'
+import { resetPasswordSchema, type ResetPasswordInput } from '../schemas'
+import { resetPassword } from '../actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -20,24 +19,24 @@ import {
 import { toast } from 'sonner'
 
 /**
- * Formulário de login para tenants (construtoras).
- * Valida com Zod e chama server action.
+ * Formulario de redefinicao de senha.
+ * Usado apos o usuario clicar no link de recuperacao.
  */
-export function LoginForm() {
+export function ResetPasswordForm() {
     const [isPending, setIsPending] = useState(false)
 
-    const form = useForm<LoginInput>({
-        resolver: zodResolver(loginSchema),
+    const form = useForm<ResetPasswordInput>({
+        resolver: zodResolver(resetPasswordSchema),
         defaultValues: {
-            email: '',
             password: '',
+            confirmPassword: '',
         },
     })
 
-    async function onSubmit(data: LoginInput) {
+    async function onSubmit(data: ResetPasswordInput) {
         setIsPending(true)
         try {
-            const result = await login(data)
+            const result = await resetPassword(data)
             if (result?.error) {
                 const errorMsg =
                     typeof result.error === 'string'
@@ -46,12 +45,11 @@ export function LoginForm() {
                 toast.error(errorMsg)
             }
         } catch (err) {
-            // Se o server action der crash (500), mas não for redirect de sucesso
-            const e = err as { digest?: string; message?: string };
+            const e = err as { digest?: string; message?: string }
             if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') {
                 throw err
             }
-            toast.error('Ocorreu um erro interno de conexão. Nossa equipe foi notificada.')
+            toast.error('Ocorreu um erro interno. Tente novamente.')
         } finally {
             setIsPending(false)
         }
@@ -62,16 +60,16 @@ export function LoginForm() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField
                     control={form.control}
-                    name="email"
+                    name="password"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>E-mail</FormLabel>
+                            <FormLabel>Nova senha</FormLabel>
                             <FormControl>
                                 <Input
                                     {...field}
-                                    type="email"
-                                    placeholder="seu@email.com"
-                                    autoComplete="email"
+                                    type="password"
+                                    placeholder="******"
+                                    autoComplete="new-password"
                                     disabled={isPending}
                                 />
                             </FormControl>
@@ -82,16 +80,16 @@ export function LoginForm() {
 
                 <FormField
                     control={form.control}
-                    name="password"
+                    name="confirmPassword"
                     render={({ field }) => (
                         <FormItem>
-                            <FormLabel>Senha</FormLabel>
+                            <FormLabel>Confirmar senha</FormLabel>
                             <FormControl>
                                 <Input
                                     {...field}
                                     type="password"
-                                    placeholder="••••••"
-                                    autoComplete="current-password"
+                                    placeholder="******"
+                                    autoComplete="new-password"
                                     disabled={isPending}
                                 />
                             </FormControl>
@@ -100,23 +98,14 @@ export function LoginForm() {
                     )}
                 />
 
-                <div className="flex justify-end">
-                    <Link
-                        href="/forgot-password"
-                        className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
-                    >
-                        Esqueci minha senha
-                    </Link>
-                </div>
-
                 <Button type="submit" className="w-full" disabled={isPending}>
                     {isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Entrando...
+                            Redefinindo...
                         </>
                     ) : (
-                        'Entrar'
+                        'Redefinir senha'
                     )}
                 </Button>
             </form>

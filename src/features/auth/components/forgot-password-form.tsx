@@ -5,8 +5,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
-import { loginSchema, type LoginInput } from '../schemas'
-import { login } from '../actions'
+import { forgotPasswordSchema, type ForgotPasswordInput } from '../schemas'
+import { forgotPassword } from '../actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -20,41 +20,57 @@ import {
 import { toast } from 'sonner'
 
 /**
- * Formulário de login para tenants (construtoras).
- * Valida com Zod e chama server action.
+ * Formulario de recuperacao de senha.
+ * Envia link por e-mail via Supabase.
  */
-export function LoginForm() {
+export function ForgotPasswordForm() {
     const [isPending, setIsPending] = useState(false)
+    const [sent, setSent] = useState(false)
 
-    const form = useForm<LoginInput>({
-        resolver: zodResolver(loginSchema),
+    const form = useForm<ForgotPasswordInput>({
+        resolver: zodResolver(forgotPasswordSchema),
         defaultValues: {
             email: '',
-            password: '',
         },
     })
 
-    async function onSubmit(data: LoginInput) {
+    async function onSubmit(data: ForgotPasswordInput) {
         setIsPending(true)
         try {
-            const result = await login(data)
+            const result = await forgotPassword(data)
             if (result?.error) {
                 const errorMsg =
                     typeof result.error === 'string'
                         ? result.error
                         : 'Verifique os dados e tente novamente'
                 toast.error(errorMsg)
+            } else {
+                setSent(true)
             }
-        } catch (err) {
-            // Se o server action der crash (500), mas não for redirect de sucesso
-            const e = err as { digest?: string; message?: string };
-            if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') {
-                throw err
-            }
-            toast.error('Ocorreu um erro interno de conexão. Nossa equipe foi notificada.')
+        } catch {
+            toast.error('Ocorreu um erro interno. Tente novamente.')
         } finally {
             setIsPending(false)
         }
+    }
+
+    if (sent) {
+        return (
+            <div className="space-y-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                    Se o e-mail informado estiver cadastrado, você receberá um link para redefinir sua senha.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                    Verifique sua caixa de entrada e spam.
+                </p>
+                <Link
+                    href="/login"
+                    className="inline-block text-sm text-primary underline-offset-4 hover:underline"
+                >
+                    Voltar para login
+                </Link>
+            </div>
+        )
     }
 
     return (
@@ -80,45 +96,22 @@ export function LoginForm() {
                     )}
                 />
 
-                <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Senha</FormLabel>
-                            <FormControl>
-                                <Input
-                                    {...field}
-                                    type="password"
-                                    placeholder="••••••"
-                                    autoComplete="current-password"
-                                    disabled={isPending}
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
-
-                <div className="flex justify-end">
-                    <Link
-                        href="/forgot-password"
-                        className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
-                    >
-                        Esqueci minha senha
-                    </Link>
-                </div>
-
                 <Button type="submit" className="w-full" disabled={isPending}>
                     {isPending ? (
                         <>
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Entrando...
+                            Enviando...
                         </>
                     ) : (
-                        'Entrar'
+                        'Enviar link de recuperação'
                     )}
                 </Button>
+
+                <p className="text-center text-sm text-muted-foreground">
+                    <Link href="/login" className="text-primary underline-offset-4 hover:underline">
+                        Voltar para login
+                    </Link>
+                </p>
             </form>
         </Form>
     )
