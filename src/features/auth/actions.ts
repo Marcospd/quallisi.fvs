@@ -92,65 +92,72 @@ export async function getSystemAuthContext(): Promise<SystemAuthContext> {
  * Valida com Zod antes de enviar ao Supabase.
  */
 export async function login(input: unknown) {
-    // Rate limiting: 5 tentativas por minuto por IP
-    const limit = await loginLimiter.check()
-    if (!limit.success) {
-        return { error: 'Muitas tentativas. Tente novamente em breve.' }
-    }
-
-    const parsed = loginSchema.safeParse(input)
-    if (!parsed.success) {
-        return { error: parsed.error.flatten() }
-    }
-
-    const supabase = await createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-        email: parsed.data.email,
-        password: parsed.data.password,
-    })
-
-    if (error) {
-        logger.warn({ email: parsed.data.email }, 'Falha no login')
-        return { error: 'E-mail ou senha incorretos' }
-    }
-
-    // Verificar se é system user ou tenant user para redirecionar
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-
-    if (authUser) {
-        const [systemUser] = await db
-            .select()
-            .from(systemUsers)
-            .where(eq(systemUsers.authId, authUser.id))
-            .limit(1)
-
-        if (systemUser) {
-            redirect('/system')
+    try {
+        // Rate limiting: 5 tentativas por minuto por IP
+        const limit = await loginLimiter.check()
+        if (!limit.success) {
+            return { error: 'Muitas tentativas. Tente novamente em breve.' }
         }
 
-        const [dbUser] = await db
-            .select()
-            .from(users)
-            .where(eq(users.authId, authUser.id))
-            .limit(1)
+        const parsed = loginSchema.safeParse(input)
+        if (!parsed.success) {
+            return { error: parsed.error.flatten() }
+        }
 
-        if (dbUser) {
-            const [tenant] = await db
+        const supabase = await createClient()
+        const { error } = await supabase.auth.signInWithPassword({
+            email: parsed.data.email,
+            password: parsed.data.password,
+        })
+
+        if (error) {
+            logger.warn({ email: parsed.data.email }, 'Falha no login')
+            return { error: 'E-mail ou senha incorretos' }
+        }
+
+        // Verificar se é system user ou tenant user para redirecionar
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+
+        if (authUser) {
+            const [systemUser] = await db
                 .select()
-                .from(tenants)
-                .where(eq(tenants.id, dbUser.tenantId))
+                .from(systemUsers)
+                .where(eq(systemUsers.authId, authUser.id))
                 .limit(1)
 
-            if (tenant?.status === 'ACTIVE') {
-                redirect(`/${tenant.slug}`)
-            } else {
-                await supabase.auth.signOut()
-                return { error: 'Acesso temporariamente suspenso. Entre em contato com o suporte.' }
+            if (systemUser) {
+                redirect('/system')
+            }
+
+            const [dbUser] = await db
+                .select()
+                .from(users)
+                .where(eq(users.authId, authUser.id))
+                .limit(1)
+
+            if (dbUser) {
+                const [tenant] = await db
+                    .select()
+                    .from(tenants)
+                    .where(eq(tenants.id, dbUser.tenantId))
+                    .limit(1)
+
+                if (tenant?.status === 'ACTIVE') {
+                    redirect(`/${tenant.slug}`)
+                } else {
+                    await supabase.auth.signOut()
+                    return { error: 'Acesso temporariamente suspenso. Entre em contato com o suporte.' }
+                }
             }
         }
-    }
 
-    return { error: 'Usuário não encontrado no sistema' }
+        return { error: 'Usuário não encontrado no sistema' }
+    } catch (err) {
+        const e = err as { digest?: string; message?: string }
+        if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw err
+        logger.error({ err }, '🚨 Fatal server error in login action (Supabase/DB/Limit)')
+        return { error: 'Instabilidade de conexão no servidor de banco de dados. Tente novamente em alguns segundos.' }
+    }
 }
 
 /**
@@ -158,46 +165,53 @@ export async function login(input: unknown) {
  * Verifica se o usuário é system_user após autenticação.
  */
 export async function systemLogin(input: unknown) {
-    // Rate limiting: 5 tentativas por minuto por IP
-    const limit = await loginLimiter.check()
-    if (!limit.success) {
-        return { error: 'Muitas tentativas. Tente novamente em breve.' }
-    }
-
-    const parsed = loginSchema.safeParse(input)
-    if (!parsed.success) {
-        return { error: parsed.error.flatten() }
-    }
-
-    const supabase = await createClient()
-    const { error } = await supabase.auth.signInWithPassword({
-        email: parsed.data.email,
-        password: parsed.data.password,
-    })
-
-    if (error) {
-        logger.warn({ email: parsed.data.email }, 'Falha no login sistema')
-        return { error: 'E-mail ou senha incorretos' }
-    }
-
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-
-    if (authUser) {
-        const [systemUser] = await db
-            .select()
-            .from(systemUsers)
-            .where(eq(systemUsers.authId, authUser.id))
-            .limit(1)
-
-        if (systemUser && systemUser.active) {
-            logger.info({ userId: systemUser.id }, 'Login sistema realizado')
-            redirect('/system')
+    try {
+        // Rate limiting: 5 tentativas por minuto por IP
+        const limit = await loginLimiter.check()
+        if (!limit.success) {
+            return { error: 'Muitas tentativas. Tente novamente em breve.' }
         }
-    }
 
-    // Não é system user — fazer logout e retornar erro
-    await supabase.auth.signOut()
-    return { error: 'Acesso não autorizado' }
+        const parsed = loginSchema.safeParse(input)
+        if (!parsed.success) {
+            return { error: parsed.error.flatten() }
+        }
+
+        const supabase = await createClient()
+        const { error } = await supabase.auth.signInWithPassword({
+            email: parsed.data.email,
+            password: parsed.data.password,
+        })
+
+        if (error) {
+            logger.warn({ email: parsed.data.email }, 'Falha no login sistema')
+            return { error: 'E-mail ou senha incorretos' }
+        }
+
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+
+        if (authUser) {
+            const [systemUser] = await db
+                .select()
+                .from(systemUsers)
+                .where(eq(systemUsers.authId, authUser.id))
+                .limit(1)
+
+            if (systemUser && systemUser.active) {
+                logger.info({ userId: systemUser.id }, 'Login sistema realizado')
+                redirect('/system')
+            }
+        }
+
+        // Não é system user — fazer logout e retornar erro
+        await supabase.auth.signOut()
+        return { error: 'Acesso não autorizado' }
+    } catch (err) {
+        const e = err as { digest?: string; message?: string }
+        if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') throw err
+        logger.error({ err }, '🚨 Fatal server error in systemLogin action')
+        return { error: 'Instabilidade de conexão no servidor.' }
+    }
 }
 
 /**

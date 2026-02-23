@@ -44,8 +44,13 @@ export function LoginForm() {
                         : 'Verifique os dados e tente novamente'
                 toast.error(errorMsg)
             }
-        } catch {
-            // redirect() do Next.js lança um erro — isso é esperado
+        } catch (err) {
+            // Se o server action der crash (500), mas não for redirect de sucesso
+            const e = err as { digest?: string; message?: string };
+            if (e?.digest?.startsWith('NEXT_REDIRECT') || e?.message === 'NEXT_REDIRECT') {
+                throw err
+            }
+            toast.error('Ocorreu um erro interno de conexão. Nossa equipe foi notificada.')
         } finally {
             setIsPending(false)
         }
