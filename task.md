@@ -162,12 +162,12 @@
 
 ## PRÓXIMAS ETAPAS PENDENTES
 
-- [/] UX/UI: **Nova Listagem de Obras em Cards**
-  - [ ] Substituir tabela por grid de cards (`ProjectCard`).
-  - [ ] Imagem de capa no topo do card com fallback.
-  - [ ] Tag flutuante de progresso da obra (ex: 75% Concluído).
-  - [ ] Barra de progresso de Qualidade (ex: 92% Aprovado).
-  - [ ] Título (Nome da Obra) e Endereço.
-  - [ ] Ações na base (Relatórios, Gerenciar) e Menu de opções (3 pontos).
+- [x] UX/UI: **Nova Listagem de Obras em Cards**
+  - [x] Substituir tabela por grid de cards (`ProjectCard`).
+  - [x] Imagem de capa no topo do card com fallback.
+  - [x] Tag flutuante de progresso da obra (ex: 75% Concluído).
+  - [x] Barra de progresso de Qualidade (ex: 92% Aprovado).
+  - [x] Título (Nome da Obra) e Endereço.
+  - [x] Ações na base (Relatórios, Gerenciar) e Menu de opções (3 pontos).
 
 > *Documento vivo — atualizar a cada sessão de trabalho.*

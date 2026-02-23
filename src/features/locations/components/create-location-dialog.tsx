@@ -54,7 +54,7 @@ export function CreateLocationDialog({ children }: { children: React.ReactNode }
         if (open) {
             listProjects().then((result) => {
                 if (result.data) {
-                    setProjectsList(result.data.filter((p) => p.active))
+                    setProjectsList(result.data.map((item) => item.project).filter((p) => p.active))
                 }
             })
         }

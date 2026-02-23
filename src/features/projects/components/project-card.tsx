@@ -27,15 +27,20 @@ type Project = InferSelectModel<typeof projects>
 
 interface ProjectCardProps {
     project: Project
+    stats?: {
+        total: number
+        approved: number
+    }
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, stats }: ProjectCardProps) {
     const [pending, setPending] = useState(false)
     const [editing, setEditing] = useState(false)
 
-    // Valores mockados para UI até termos métricas reais no backend
-    const progressPercent = 75
-    const qualityPercent = 92
+    // Cálculo real baseado nas métricas vindas do BD (ou mock inicial 0)
+    const total = stats?.total || 0
+    const approved = stats?.approved || 0
+    const qualityPercent = total > 0 ? Math.round((approved / total) * 100) : 0
 
     // Cor dinâmica da barra de qualidade baseada no valor mockado
     const getQualityColor = (value: number) => {
@@ -82,9 +87,6 @@ export function ProjectCard({ project }: ProjectCardProps) {
 
                     {/* Status / Tags floatings */}
                     <div className="absolute left-3 top-3 flex gap-2 flex-col items-start">
-                        <Badge variant="secondary" className="bg-background/80 backdrop-blur-sm hover:bg-background tracking-tight shadow-sm">
-                            {progressPercent}% Concluído
-                        </Badge>
                         {!project.active && (
                             <Badge variant="destructive" className="shadow-sm">
                                 Inativa
@@ -139,13 +141,20 @@ export function ProjectCard({ project }: ProjectCardProps) {
                     <div className="space-y-2 mt-auto pt-2 border-t">
                         <div className="flex items-center justify-between text-sm">
                             <span className="font-medium text-muted-foreground">Índice de Qualidade</span>
-                            <span className="font-bold tracking-tight">{qualityPercent}% aprovado</span>
+                            <span className="font-bold tracking-tight">
+                                {total > 0 ? `${qualityPercent}% aprovado` : 'Sem dados'}
+                            </span>
                         </div>
                         <Progress
                             value={qualityPercent}
                             className="h-2"
-                            indicatorColor={getQualityColor(qualityPercent)}
+                            indicatorColor={total > 0 ? getQualityColor(qualityPercent) : 'bg-muted'}
                         />
+                        {total > 0 && (
+                            <p className="text-[10px] text-muted-foreground text-right w-full">
+                                {approved} de {total} inspeções
+                            </p>
+                        )}
                     </div>
                 </div>
 

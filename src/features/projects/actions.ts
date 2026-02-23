@@ -3,7 +3,7 @@
 import { eq, and, ilike, count, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { projects } from '@/lib/db/schema'
+import { projects, inspections } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
 import { createProjectSchema, updateProjectSchema } from './schemas'
 import { logger } from '@/lib/logger'
@@ -38,7 +38,23 @@ export async function listProjects(options?: {
         const totalItems = queryCount[0]?.count || 0
 
         const result = await db
-            .select()
+            .select({
+                project: projects,
+                stats: {
+                    total: sql<number>`(
+                        SELECT COUNT(*) 
+                        FROM ${inspections} 
+                        WHERE ${inspections.projectId} = ${projects.id} 
+                        AND ${inspections.result} IS NOT NULL
+                    )`.mapWith(Number),
+                    approved: sql<number>`(
+                        SELECT COUNT(*) 
+                        FROM ${inspections} 
+                        WHERE ${inspections.projectId} = ${projects.id} 
+                        AND ${inspections.result} IN ('APPROVED', 'APPROVED_WITH_RESTRICTIONS')
+                    )`.mapWith(Number),
+                }
+            })
             .from(projects)
             .where(and(...filters))
             .limit(limit)
@@ -152,7 +168,7 @@ export async function updateProject(projectId: string, input: unknown) {
         return { error: parsed.error.flatten() }
     }
 
-    const updateData: Record<string, any> = { updatedAt: new Date() }
+    const updateData: Record<string, unknown> = { updatedAt: new Date() }
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name
     if (parsed.data.address !== undefined) updateData.address = parsed.data.address
     if (parsed.data.imageUrl !== undefined) updateData.imageUrl = parsed.data.imageUrl

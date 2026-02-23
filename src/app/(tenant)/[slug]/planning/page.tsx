@@ -26,10 +26,10 @@ export default async function PlanningPage() {
                 <ErrorState description={projectsResult.error} />
             ) : (
                 <PlanningPageClient
-                    projects={(projectsResult.data ?? []).map((p) => ({
-                        id: p.id,
-                        name: p.name,
-                        active: p.active,
+                    projects={(projectsResult.data ?? []).map((item) => ({
+                        id: item.project.id,
+                        name: item.project.name,
+                        active: item.project.active,
                     }))}
                 />
             )}

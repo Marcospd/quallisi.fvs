@@ -80,7 +80,7 @@ export function CreateInspectionDialog({
         Promise.all([listProjects(), listServices()])
             .then(([projectsResult, servicesResult]) => {
                 if (projectsResult.data) {
-                    setProjectsList(projectsResult.data.filter((p) => p.active) as Project[])
+                    setProjectsList(projectsResult.data.map(item => item.project).filter((p) => p.active) as Project[])
                 }
                 if (servicesResult.data) {
                     setServicesList(

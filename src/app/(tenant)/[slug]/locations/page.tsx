@@ -72,7 +72,7 @@ export default async function LocationsPage({
                 <div className="flex flex-col gap-4">
                     <LocationsTable
                         data={locationsResult.data.map(d => d.location as unknown as any)}
-                        projects={projectsResult.data || []}
+                        projects={projectsResult.data?.map(p => p.project) || []}
                     />
                     {locationsResult.meta && locationsResult.data.length > 0 && (
                         <DataTablePagination
