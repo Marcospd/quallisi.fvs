@@ -52,6 +52,7 @@ interface InspectionData {
         notes: string | null
         completedAt: Date | null
     }
+    project: { id: string; name: string }
     service: { id: string; name: string }
     location: { id: string; name: string }
     inspector: { id: string; name: string }
@@ -193,7 +194,11 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
             {/* Cabeçalho da inspeção */}
             <Card>
                 <CardContent className="pt-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div>
+                            <p className="text-xs text-muted-foreground">Obra</p>
+                            <p className="font-semibold">{data.project.name}</p>
+                        </div>
                         <div>
                             <p className="text-xs text-muted-foreground">Serviço</p>
                             <p className="font-medium">{data.service.name}</p>
@@ -233,13 +238,12 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                     </div>
                     <div className="w-full bg-muted rounded-full h-2.5">
                         <div
-                            className={`h-2.5 rounded-full transition-all duration-300 ${
-                                progress === 100
+                            className={`h-2.5 rounded-full transition-all duration-300 ${progress === 100
                                     ? ncCount > 0
                                         ? 'bg-red-500'
                                         : 'bg-emerald-500'
                                     : 'bg-primary'
-                            }`}
+                                }`}
                             style={{ width: `${progress}%` }}
                         />
                     </div>
@@ -260,15 +264,14 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                         return (
                             <div
                                 key={item.item.id}
-                                className={`rounded-lg border p-4 transition-colors ${
-                                    currentEval === 'NC'
+                                className={`rounded-lg border p-4 transition-colors ${currentEval === 'NC'
                                         ? 'border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20'
                                         : currentEval === 'C'
                                             ? 'border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20'
                                             : currentEval === 'NA'
                                                 ? 'border-gray-200 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-900/20'
                                                 : 'border-border'
-                                }`}
+                                    }`}
                             >
                                 <div className="flex items-start gap-3">
                                     <span className="text-sm font-bold text-muted-foreground mt-0.5 w-6 shrink-0">

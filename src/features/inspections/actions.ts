@@ -18,6 +18,7 @@ export async function listInspections(projectId?: string) {
         const baseQuery = db
             .select({
                 inspection: inspections,
+                project: projects,
                 service: services,
                 location: locations,
                 inspector: users,
@@ -118,6 +119,7 @@ export async function getInspection(inspectionId: string) {
         const [inspectionResult] = await db
             .select({
                 inspection: inspections,
+                project: projects,
                 service: services,
                 location: locations,
                 inspector: users,
@@ -247,7 +249,7 @@ export async function completeInspection(inspectionId: string) {
         revalidatePath(`/${tenant.slug}/inspections`)
 
         // Notificar supervisores e admins (fire-and-forget)
-        notifyInspectionCompleted(inspectionId, tenant.slug).catch(() => {})
+        notifyInspectionCompleted(inspectionId, tenant.slug).catch(() => { })
 
         return { data: updated }
     } catch (err) {

@@ -22,6 +22,7 @@ interface InspectionRow {
         createdAt: Date | null
     }
     service: { id: string; name: string }
+    project: { id: string; name: string }
     location: { id: string; name: string }
     inspector: { id: string; name: string }
 }
@@ -66,6 +67,7 @@ export function InspectionsTable({ inspections, tenantSlug }: InspectionsTablePr
                 <TableHeader>
                     <TableRow>
                         <TableHead>Serviço</TableHead>
+                        <TableHead>Obra</TableHead>
                         <TableHead>Local</TableHead>
                         <TableHead>Inspetor</TableHead>
                         <TableHead>Mês</TableHead>
@@ -76,7 +78,7 @@ export function InspectionsTable({ inspections, tenantSlug }: InspectionsTablePr
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {inspections.map(({ inspection, service, location, inspector }) => {
+                    {inspections.map(({ inspection, service, project, location, inspector }) => {
                         const status = statusConfig[inspection.status] ?? { label: inspection.status, variant: 'neutral' as const }
                         const res = inspection.result ? resultConfig[inspection.result] ?? { label: inspection.result, variant: 'neutral' as const } : null
 
@@ -93,6 +95,9 @@ export function InspectionsTable({ inspections, tenantSlug }: InspectionsTablePr
                                         </div>
                                         <span className="font-medium">{service.name}</span>
                                     </div>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="font-semibold text-sm">{project.name}</span>
                                 </TableCell>
                                 <TableCell>
                                     <div className="flex items-center gap-1.5 text-muted-foreground">
