@@ -86,7 +86,7 @@ export function LocationsTable({ data, projects }: LocationsTableProps) {
                                     </div>
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
-                                    {proj ? proj.name : '—'}
+                                    {proj?.name || '—'}
                                 </TableCell>
                                 <TableCell className="text-sm text-muted-foreground">
                                     {loc.description || '—'}
