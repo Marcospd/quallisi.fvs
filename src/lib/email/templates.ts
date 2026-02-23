@@ -28,8 +28,9 @@ export function inspectionCompletedEmail(params: {
     link: string
 }): { subject: string; html: string } {
     const isApproved = params.result === 'APPROVED'
-    const resultLabel = isApproved ? 'APROVADA' : 'REPROVADA'
-    const color = isApproved ? '#16a34a' : '#dc2626'
+    const hasRestrictions = params.result === 'APPROVED_WITH_RESTRICTIONS'
+    const resultLabel = isApproved ? 'APROVADA' : hasRestrictions ? 'COM PENDÊNCIAS' : 'REPROVADA'
+    const color = isApproved ? '#16a34a' : hasRestrictions ? '#d97706' : '#dc2626'
 
     return {
         subject: `Inspeção ${resultLabel}: ${params.serviceName} — ${params.locationName}`,

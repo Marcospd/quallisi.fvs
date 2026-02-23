@@ -3,7 +3,7 @@
 import { eq, and, desc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { inspections, inspectionItems, projects, services, locations, users, criteria } from '@/lib/db/schema'
+import { inspections, inspectionItems, projects, services, locations, users, criteria, issues } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
 import { logger } from '@/lib/logger'
 import { notifyInspectionCompleted } from '@/features/notifications/create-notification'
@@ -204,29 +204,35 @@ export async function updateItemPhoto(itemId: string, photoUrl: string | null) {
 
 /**
  * Finaliza uma inspeção e define o resultado.
- * Calcula automaticamente: todos C → APPROVED, algum NC → REJECTED.
+ * Calcula automaticamente: todos C → APPROVED, algum NC → APPROVED_WITH_RESTRICTIONS.
+ * Itens NC geram pendências automaticamente para acompanhamento e resolução.
  */
 export async function completeInspection(inspectionId: string) {
     const { user, tenant } = await getAuthContext()
 
     try {
-        // Buscar todos os items desta inspeção
-        const items = await db
-            .select()
+        // Buscar todos os items desta inspeção com dados do critério
+        const itemsWithCriteria = await db
+            .select({
+                item: inspectionItems,
+                criterion: criteria,
+            })
             .from(inspectionItems)
+            .innerJoin(criteria, eq(inspectionItems.criterionId, criteria.id))
             .where(eq(inspectionItems.inspectionId, inspectionId))
+            .orderBy(criteria.sortOrder)
 
-        if (items.length === 0) return { error: 'Inspeção sem itens' }
+        if (itemsWithCriteria.length === 0) return { error: 'Inspeção sem itens' }
 
         // Verificar se todos foram avaliados
-        const unevaluated = items.filter((i) => !i.evaluation)
+        const unevaluated = itemsWithCriteria.filter((i) => !i.item.evaluation)
         if (unevaluated.length > 0) {
             return { error: `${unevaluated.length} critério(s) ainda não foram avaliados` }
         }
 
-        // Calcular resultado
-        const hasNC = items.some((i) => i.evaluation === 'NC')
-        const result = hasNC ? 'REJECTED' : 'APPROVED'
+        // Calcular resultado: NC → gera pendências, não reprova
+        const ncItems = itemsWithCriteria.filter((i) => i.item.evaluation === 'NC')
+        const result = ncItems.length > 0 ? 'APPROVED_WITH_RESTRICTIONS' : 'APPROVED'
 
         const [updated] = await db
             .update(inspections)
@@ -241,12 +247,30 @@ export async function completeInspection(inspectionId: string) {
 
         if (!updated) return { error: 'Inspeção não encontrada' }
 
+        // Criar pendências automaticamente para cada item NC
+        if (ncItems.length > 0) {
+            await db.insert(issues).values(
+                ncItems.map((nc) => ({
+                    inspectionId,
+                    description: nc.item.notes
+                        ? `${nc.criterion.description} — ${nc.item.notes}`
+                        : nc.criterion.description,
+                }))
+            )
+
+            logger.info(
+                { inspectionId, issuesCreated: ncItems.length, action: 'issues.auto_created' },
+                'Pendências criadas automaticamente a partir de itens NC'
+            )
+        }
+
         logger.info(
             { userId: user.id, inspectionId, result, action: 'inspection.completed' },
             'Inspeção finalizada'
         )
 
         revalidatePath(`/${tenant.slug}/inspections`)
+        revalidatePath(`/${tenant.slug}/issues`)
 
         // Notificar supervisores e admins (fire-and-forget)
         notifyInspectionCompleted(inspectionId, tenant.slug).catch(() => { })

@@ -9,8 +9,8 @@ import { criteria } from './services'
  * Inspeções FVS — ficha de verificação de serviço.
  * Cada inspeção registra a avaliação de um serviço em um local.
  *
- * Status: DRAFT → IN_PROGRESS → COMPLETED → APPROVED / REJECTED
- * result: APPROVED, APPROVED_WITH_RESTRICTIONS, REJECTED
+ * Status: DRAFT → IN_PROGRESS → COMPLETED
+ * result: APPROVED | APPROVED_WITH_RESTRICTIONS (com pendências geradas automaticamente)
  */
 export const inspections = pgTable('inspections', {
     id: uuid('id').primaryKey().defaultRandom(),

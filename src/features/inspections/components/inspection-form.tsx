@@ -178,7 +178,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                 toast.success(
                     result.data?.result === 'APPROVED'
                         ? 'Inspeção aprovada!'
-                        : 'Inspeção reprovada — gere pendências para os itens NC'
+                        : `Inspeção concluída — ${ncCount} pendência${ncCount > 1 ? 's' : ''} criada${ncCount > 1 ? 's' : ''} automaticamente`
                 )
                 router.refresh()
             }
@@ -410,7 +410,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                                 <AlertDialogTitle>Finalizar inspeção?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                     {ncCount > 0
-                                        ? `Esta inspeção será marcada como REPROVADA (${ncCount} critério${ncCount > 1 ? 's' : ''} não conforme${ncCount > 1 ? 's' : ''}). Esta ação não pode ser desfeita.`
+                                        ? `${ncCount} critério${ncCount > 1 ? 's' : ''} não conforme${ncCount > 1 ? 's' : ''} — ${ncCount > 1 ? 'serão geradas pendências' : 'será gerada uma pendência'} automaticamente para acompanhamento. Esta ação não pode ser desfeita.`
                                         : 'Todos os critérios estão conformes. A inspeção será marcada como APROVADA. Esta ação não pode ser desfeita.'
                                     }
                                 </AlertDialogDescription>
@@ -432,25 +432,25 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                 <Card className={
                     data.inspection.result === 'APPROVED'
                         ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
-                        : 'border-red-500 bg-red-50/50 dark:bg-red-950/20'
+                        : 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20'
                 }>
                     <CardContent className="pt-6 flex items-center gap-3">
                         {data.inspection.result === 'APPROVED' ? (
                             <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                         ) : (
-                            <AlertTriangle className="h-8 w-8 text-red-600" />
+                            <AlertTriangle className="h-8 w-8 text-amber-600" />
                         )}
                         <div>
                             <p className="font-bold text-lg">
                                 {data.inspection.result === 'APPROVED'
                                     ? 'Inspeção Aprovada'
-                                    : 'Inspeção Reprovada'
+                                    : 'Inspeção Concluída com Pendências'
                                 }
                             </p>
                             <p className="text-sm text-muted-foreground">
                                 {data.inspection.result === 'APPROVED'
                                     ? 'Todos os critérios foram avaliados como conformes'
-                                    : `${ncCount} critério${ncCount > 1 ? 's' : ''} não conforme${ncCount > 1 ? 's' : ''} — gere pendências para resolução`
+                                    : `${ncCount} pendência${ncCount > 1 ? 's' : ''} ${ncCount > 1 ? 'foram criadas' : 'foi criada'} automaticamente para resolução`
                                 }
                             </p>
                         </div>

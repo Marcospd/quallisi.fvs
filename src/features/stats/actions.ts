@@ -27,12 +27,17 @@ export async function getTenantStats() {
             .innerJoin(projects, eq(inspections.projectId, projects.id))
             .where(and(eq(projects.tenantId, tenant.id), eq(inspections.result, 'APPROVED')))
 
-        // Inspeções reprovadas
+        // Inspeções com pendências (APPROVED_WITH_RESTRICTIONS ou REJECTED legado)
         const [rejectedCount] = await db
             .select({ total: count() })
             .from(inspections)
             .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(and(eq(projects.tenantId, tenant.id), eq(inspections.result, 'REJECTED')))
+            .where(
+                and(
+                    eq(projects.tenantId, tenant.id),
+                    sql`${inspections.result} IN ('REJECTED', 'APPROVED_WITH_RESTRICTIONS')`
+                )
+            )
 
         // Inspeções em aberto (DRAFT ou IN_PROGRESS)
         const [pendingInspections] = await db

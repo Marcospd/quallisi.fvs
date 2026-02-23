@@ -37,7 +37,7 @@ const statusConfig: Record<string, { label: string; variant: StatusVariant }> = 
 
 const resultConfig: Record<string, { label: string; variant: StatusVariant }> = {
     APPROVED: { label: 'Aprovada', variant: 'success' },
-    APPROVED_WITH_RESTRICTIONS: { label: 'Com Restrições', variant: 'warning' },
+    APPROVED_WITH_RESTRICTIONS: { label: 'Com Pendências', variant: 'warning' },
     REJECTED: { label: 'Reprovada', variant: 'danger' },
 }
 

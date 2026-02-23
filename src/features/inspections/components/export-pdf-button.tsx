@@ -110,7 +110,11 @@ export function ExportPdfButton({ data }: ExportPdfButtonProps) {
                 doc.setFont('helvetica', 'bold')
                 doc.text('Resultado:', col2, infoY + 16)
                 doc.setFont('helvetica', 'normal')
-                const resultLabel = data.inspection.result === 'APPROVED' ? 'APROVADA' : 'REPROVADA'
+                const resultLabel = data.inspection.result === 'APPROVED'
+                    ? 'APROVADA'
+                    : data.inspection.result === 'APPROVED_WITH_RESTRICTIONS'
+                        ? 'COM PENDÊNCIAS'
+                        : 'REPROVADA'
                 doc.text(resultLabel, col2 + 30, infoY + 16)
             }
 

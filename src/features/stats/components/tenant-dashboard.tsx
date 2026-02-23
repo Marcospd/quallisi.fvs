@@ -64,7 +64,7 @@ export function TenantDashboard({ stats, tenantSlug }: TenantDashboardProps) {
     // Dados para gráfico de pizza (distribuição de inspeções)
     const pieData = [
         { name: 'Aprovadas', value: stats.approvedInspections, color: COLORS.approved },
-        { name: 'Reprovadas', value: stats.rejectedInspections, color: COLORS.rejected },
+        { name: 'Com Pendências', value: stats.rejectedInspections, color: COLORS.rejected },
         { name: 'Em andamento', value: stats.pendingInspections, color: COLORS.pending },
     ].filter(d => d.value > 0)
 
@@ -207,11 +207,11 @@ export function TenantDashboard({ stats, tenantSlug }: TenantDashboardProps) {
                     iconClassName="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
                 />
                 <MetricCard
-                    title="Reprovadas"
+                    title="Com Pendências"
                     value={stats.rejectedInspections}
-                    icon={XCircle}
+                    icon={AlertTriangle}
                     description="FVS com NC"
-                    iconClassName="bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                    iconClassName="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
                 />
                 <MetricCard
                     title="Em Andamento"

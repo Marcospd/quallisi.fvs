@@ -83,7 +83,11 @@ export async function notifyInspectionCompleted(inspectionId: string, tenantSlug
         )
 
         const link = `${APP_URL}/${tenantSlug}/inspections/${inspectionId}`
-        const resultLabel = inspData.inspection.result === 'APPROVED' ? 'aprovada' : 'reprovada'
+        const resultLabel = inspData.inspection.result === 'APPROVED'
+            ? 'aprovada'
+            : inspData.inspection.result === 'APPROVED_WITH_RESTRICTIONS'
+                ? 'concluída com pendências'
+                : 'reprovada'
 
         // Notificação in-app + e-mail para cada destinatário
         for (const recipient of recipients) {
