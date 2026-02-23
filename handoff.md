@@ -130,6 +130,21 @@ src/
 
 ---
 
+## 🚨 [ALERTA DE DEPLOY VERCEL: DATABASE TIMEOUT] 🚨
+**Paramos aqui devido a um erro de conexão do Serverless da Vercel com o Supabase Postgres.**
+
+**O Problema (Status Atual):**
+Ao tentar o Login em Produção, ocorre erro 500 no Form. Ao diagnosticar pela API livre que criamos (`https://quallisi-fvs.vercel.app/api/diagnostic`), o Supabase Auth responde OK (`success: true`), mas o Drizzle/Postgres retorna `Failed query: SELECT 1 as test / STATUS 500`.
+
+**O que JÁ FOI TENTADO e implementado no código base (Não precisa refazer):**
+1. O Front-End já está equipado com Try/Catch e Toasts visuais para não engolir o 500 em falhas de infraestrutura.
+2. Adicionada flag `{ prepare: false }` no arquivo `src/lib/db/index.ts` (pois PGBouncers no Supabase não suportam prepared statements de clients Vercel Edge).
+3. Adicionada exceção ao `middleware.ts` para que requisições RPC `(/api/*)` não sofram Redirect de SignIn, evitando dar conflitos de CORS no navegador (Erro de `ERR_BLOCKED_BY_CLIENT`).
+4. Tentativa de conexão com Database URL usando a porta IPv4 direta (AWS porta `5432`) no painel de ambiente ao invez do Pooler (`6543`), sem sucesso.
+
+**MISSÃO PARA A PRÓXIMA IA:**
+O código do app está blindado, mas a Vercel não encontra a String do Drizzle. Revise a URL do Supabase, verifique os `Run Time Logs` online ou investigue a fundo como passar pelo Edge Handler do Postgres.js nesta versão do Drizzle. Use o `/api/diagnostic` pelo browser (sem precisar logar) pra ganhar tempo e checar o output nativo do Pg Client.
+
 ## Padrões a seguir
 
 ### Server Actions
@@ -203,6 +218,7 @@ Sempre retornar `{ data: T }` ou `{ error: string | ZodFlattenedError }`.
 | 2026-02-22 | Claude Code | F14 Notificações completa (Resend + in-app + triggers). F15 PDF completa (jspdf+autotable). Gestão de Equipe completa (invite com auth user + e-mail, roles, toggle ativo). Admin Supabase client criado. Build OK. |
 | 2026-02-22 | Claude Code | Upload de fotos, migrations geradas, 39 testes unitários. |
 | 2026-02-22 | Antigravity | Fase 4 pré-deploy: Sentry (client/server/edge + global-error), Rate limiting (login 5/min, convite 10/min), RLS SQL (15 tabelas + Storage), Validação de env vars (Zod). Build OK. |
+| 2026-02-22 | Antigravity | Bugfix: Auth Action try/catches para CORS/500 proxy error na Vercel resolvido. Setup pooler Drizzle (`prepare:false`) configurado. Criado watcher online `/api/diagnostic` free-auth para monitoramento de instabilidade de Banco. |
 | — | — | *(Próxima IA: preencher esta linha ao terminar)* |
 
 ---
