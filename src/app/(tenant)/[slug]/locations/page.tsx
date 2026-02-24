@@ -40,7 +40,7 @@ export default async function LocationsPage({
         : null
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="flex min-h-full flex-1 flex-col gap-6 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Locais de Inspeção</h1>
@@ -86,7 +86,7 @@ export default async function LocationsPage({
                     }
                 />
             ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-1 flex-col gap-4">
                     <LocationsTable
                         data={locationsResult.data as any}
                         projects={projectsResult.data?.map(p => p.project) || []}

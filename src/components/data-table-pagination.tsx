@@ -46,7 +46,7 @@ export function DataTablePagination({
     }
 
     return (
-        <div className="flex items-center justify-between px-2 py-4">
+        <div className="mt-auto sticky bottom-0 flex items-center justify-between border-t bg-background px-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
                 Total de {totalItems} registro(s).
             </div>

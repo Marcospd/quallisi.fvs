@@ -27,7 +27,7 @@ export default async function ServicesPage({
     const result = await listServices({ page, limit, q })
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="flex min-h-full flex-1 flex-col gap-6 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Serviços e Critérios</h1>

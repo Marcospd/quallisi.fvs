@@ -71,7 +71,7 @@ export default async function TenantLayout({
                 <SidebarInset>
                     <div className="flex flex-1 flex-col">
                         <TopNav />
-                        <main className="flex-1 bg-muted/20">
+                        <main className="flex flex-1 flex-col bg-muted/20">
                             {children}
                         </main>
                     </div>

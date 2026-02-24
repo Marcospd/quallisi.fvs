@@ -34,7 +34,7 @@ export default async function TeamPage({
     const isAdmin = auth.user.role === 'admin'
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="flex min-h-full flex-1 flex-col gap-6 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Equipe</h1>
@@ -64,7 +64,7 @@ export default async function TeamPage({
                     description="Convide inspetores e supervisores para começar a criar e gerenciar inspeções de qualidade."
                 />
             ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-1 flex-col gap-4">
                     <TeamTable
                         members={result.data as unknown as any}
                         currentUserId={auth.user.id}

@@ -29,7 +29,7 @@ export default async function ProjectsPage({
     const result = await listProjects({ page, limit, q })
 
     return (
-        <div className="space-y-6 p-6">
+        <div className="flex min-h-full flex-1 flex-col gap-6 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Obras</h1>
@@ -65,7 +65,7 @@ export default async function ProjectsPage({
                     }
                 />
             ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-1 flex-col gap-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         {result.data.map((item) => (
                             <ProjectCard
