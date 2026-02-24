@@ -44,12 +44,6 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
     const approved = stats?.approved || 0
     const qualityPercent = total > 0 ? Math.round((approved / total) * 100) : 0
 
-    // Cor dinâmica da barra de qualidade baseada no valor mockado
-    const getQualityColor = (value: number) => {
-        if (value >= 90) return 'bg-emerald-500'
-        if (value >= 70) return 'bg-amber-500'
-        return 'bg-destructive'
-    }
 
     async function handleToggle() {
         setPending(true)
@@ -150,7 +144,7 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                         <Progress
                             value={qualityPercent}
                             className="h-1.5"
-                            indicatorColor={total > 0 ? getQualityColor(qualityPercent) : 'bg-muted'}
+                            indicatorColor={total > 0 ? 'bg-emerald-500' : 'bg-muted'}
                         />
                         {total > 0 && (
                             <p className="text-[10px] text-muted-foreground text-right w-full">
