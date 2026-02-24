@@ -10,7 +10,6 @@ import {
     Wrench,
     CalendarDays,
     AlertTriangle,
-    BarChart3,
     Users,
 } from 'lucide-react'
 import { useTenant } from '@/features/tenant/components/tenant-provider'
@@ -38,12 +37,8 @@ export function TenantSidebar() {
     const operationItems = [
         { title: 'Dashboard', href: base, icon: LayoutDashboard },
         { title: 'Inspeções', href: `${base}/inspections`, icon: ClipboardCheck },
-        { title: 'Planejamento', href: `${base}/planning`, icon: CalendarDays },
-    ]
-
-    const qualityItems = [
         { title: 'Pendências', href: `${base}/issues`, icon: AlertTriangle },
-        { title: 'Estatísticas', href: `${base}/stats`, icon: BarChart3 },
+        { title: 'Planejamento', href: `${base}/planning`, icon: CalendarDays },
     ]
 
     const configItems = [
@@ -73,24 +68,6 @@ export function TenantSidebar() {
                     <SidebarGroupContent>
                         <SidebarMenu>
                             {operationItems.map((item) => (
-                                <SidebarMenuItem key={item.href}>
-                                    <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                                        <Link href={item.href}>
-                                            <item.icon className="h-4 w-4" />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-
-                <SidebarGroup>
-                    <SidebarGroupLabel>Qualidade</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {qualityItems.map((item) => (
                                 <SidebarMenuItem key={item.href}>
                                     <SidebarMenuButton asChild isActive={isActive(item.href)}>
                                         <Link href={item.href}>
