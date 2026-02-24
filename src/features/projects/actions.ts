@@ -3,7 +3,7 @@
 import { eq, and, ilike, count, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
-import { projects, inspections } from '@/lib/db/schema'
+import { projects, inspections, inspectionItems } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
 import { createProjectSchema, updateProjectSchema } from './schemas'
 import { logger } from '@/lib/logger'
@@ -40,11 +40,12 @@ export async function listProjects(options?: {
         const rows = await db
             .select({
                 project: projects,
-                total: sql<number>`count(case when ${inspections.result} is not null then 1 end)`.mapWith(Number),
-                approved: sql<number>`count(case when ${inspections.result} in ('APPROVED', 'APPROVED_WITH_RESTRICTIONS') then 1 end)`.mapWith(Number),
+                total: sql<number>`count(case when ${inspectionItems.evaluation} in ('C', 'NC') then 1 end)`.mapWith(Number),
+                approved: sql<number>`count(case when ${inspectionItems.evaluation} = 'C' then 1 end)`.mapWith(Number),
             })
             .from(projects)
             .leftJoin(inspections, eq(inspections.projectId, projects.id))
+            .leftJoin(inspectionItems, eq(inspectionItems.inspectionId, inspections.id))
             .where(and(...filters))
             .groupBy(projects.id)
             .limit(limit)

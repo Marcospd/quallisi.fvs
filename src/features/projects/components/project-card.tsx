@@ -148,7 +148,7 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                         />
                         {total > 0 && (
                             <p className="text-[10px] text-muted-foreground text-right w-full">
-                                {approved}/{total} inspeções
+                                {approved}/{total} itens conformes
                             </p>
                         )}
                     </div>
