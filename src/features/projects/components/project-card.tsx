@@ -72,36 +72,36 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
             <div className={`flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md ${!project.active ? 'opacity-70 grayscale-[0.3]' : ''}`}>
 
                 {/* Image Cover Area */}
-                <div className="relative h-48 w-full overflow-hidden rounded-t-xl bg-muted/50">
+                <div className="relative h-24 w-full overflow-hidden rounded-t-xl bg-muted/50">
                     {project.imageUrl ? (
                         <Image
                             src={project.imageUrl}
                             alt={`Capa da obra ${project.name}`}
                             fill
-                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
                             className="object-cover transition-transform hover:scale-105 duration-500"
                         />
                     ) : (
                         <div className="absolute inset-0 flex items-center justify-center bg-blue-50 dark:bg-blue-950/20">
-                            <Building2 className="h-12 w-12 text-blue-200 dark:text-blue-800" />
+                            <Building2 className="h-8 w-8 text-blue-200 dark:text-blue-800" />
                         </div>
                     )}
 
                     {/* Status / Tags floatings */}
-                    <div className="absolute left-3 top-3 flex gap-2 flex-col items-start">
+                    <div className="absolute left-2 top-2 flex gap-1 flex-col items-start">
                         {!project.active && (
-                            <Badge variant="destructive" className="shadow-sm">
+                            <Badge variant="destructive" className="shadow-sm text-[10px] px-1.5 py-0">
                                 Inativa
                             </Badge>
                         )}
                     </div>
 
                     {/* Quick Menu */}
-                    <div className="absolute right-3 top-3">
+                    <div className="absolute right-2 top-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background shadow-sm">
-                                    <MoreVertical className="h-4 w-4" />
+                                <Button variant="secondary" size="icon" className="h-6 w-6 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background shadow-sm">
+                                    <MoreVertical className="h-3 w-3" />
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
@@ -126,49 +126,49 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                 </div>
 
                 {/* Content Area */}
-                <div className="flex flex-1 flex-col p-5 gap-4">
+                <div className="flex flex-1 flex-col p-3 gap-2">
                     <div>
-                        <h3 className="font-semibold text-lg line-clamp-1 leading-tight tracking-tight mb-1" title={project.name}>
+                        <h3 className="font-semibold text-sm line-clamp-1 leading-tight tracking-tight mb-0.5" title={project.name}>
                             {project.name}
                         </h3>
-                        <div className="flex items-start text-muted-foreground gap-1.5 min-h-5">
-                            <MapPin className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            <p className="text-sm line-clamp-1" title={project.address || 'Sem endereço'}>
+                        <div className="flex items-start text-muted-foreground gap-1 min-h-4">
+                            <MapPin className="h-3 w-3 mt-0.5 shrink-0" />
+                            <p className="text-xs line-clamp-1" title={project.address || 'Sem endereço'}>
                                 {project.address || 'Endereço não cadastrado'}
                             </p>
                         </div>
                     </div>
 
                     {/* Quality Metrics */}
-                    <div className="space-y-2 mt-auto pt-2 border-t">
-                        <div className="flex items-center justify-between text-sm">
-                            <span className="font-medium text-muted-foreground">Índice de Qualidade</span>
+                    <div className="space-y-1 mt-auto pt-2 border-t">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium text-muted-foreground">Qualidade</span>
                             <span className="font-bold tracking-tight">
-                                {total > 0 ? `${qualityPercent}% aprovado` : 'Sem dados'}
+                                {total > 0 ? `${qualityPercent}%` : '—'}
                             </span>
                         </div>
                         <Progress
                             value={qualityPercent}
-                            className="h-2"
+                            className="h-1.5"
                             indicatorColor={total > 0 ? getQualityColor(qualityPercent) : 'bg-muted'}
                         />
                         {total > 0 && (
                             <p className="text-[10px] text-muted-foreground text-right w-full">
-                                {approved} de {total} inspeções
+                                {approved}/{total} inspeções
                             </p>
                         )}
                     </div>
                 </div>
 
                 {/* Footer Actions */}
-                <div className="grid grid-cols-2 gap-2 p-5 pt-0">
-                    <Button variant="outline" className="w-full text-xs sm:text-sm" disabled>
-                        <FileText className="mr-2 h-3.5 w-3.5" />
+                <div className="grid grid-cols-2 gap-1.5 p-3 pt-0">
+                    <Button variant="outline" className="w-full text-[11px] h-7" disabled>
+                        <FileText className="mr-1 h-3 w-3" />
                         Relatórios
                     </Button>
-                    <Button asChild className="w-full text-xs sm:text-sm">
+                    <Button asChild className="w-full text-[11px] h-7">
                         <Link href={`/${tenant.slug}/locations?projectId=${project.id}`}>
-                            <Settings className="mr-2 h-3.5 w-3.5" />
+                            <Settings className="mr-1 h-3 w-3" />
                             Gerenciar
                         </Link>
                     </Button>
