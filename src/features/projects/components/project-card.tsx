@@ -72,7 +72,7 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
             <div className={`flex flex-col rounded-xl border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md ${!project.active ? 'opacity-70 grayscale-[0.3]' : ''}`}>
 
                 {/* Image Cover Area */}
-                <div className="relative h-24 w-full overflow-hidden rounded-t-xl bg-muted/50">
+                <div className="relative h-28 w-full overflow-hidden rounded-t-xl bg-muted/50">
                     {project.imageUrl ? (
                         <Image
                             src={project.imageUrl}
