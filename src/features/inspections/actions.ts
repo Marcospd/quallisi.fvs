@@ -1,6 +1,6 @@
 'use server'
 
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, sql } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { inspections, inspectionItems, projects, services, locations, users, criteria, issues } from '@/lib/db/schema'
@@ -279,5 +279,175 @@ export async function completeInspection(inspectionId: string) {
     } catch (err) {
         logger.error({ err, inspectionId }, 'Erro ao finalizar inspeção')
         return { error: 'Erro ao finalizar inspeção' }
+    }
+}
+
+/**
+ * Conclui a revisão de uma inspeção com pendências.
+ * Recalcula o resultado com base nos itens atuais.
+ * Se todos C/NA → APPROVED e resolve todas as pendências.
+ * Se ainda há NC → mantém APPROVED_WITH_RESTRICTIONS.
+ */
+export async function reviseInspection(inspectionId: string) {
+    const { user, tenant } = await getAuthContext()
+
+    try {
+        // Verificar que a inspeção pertence ao tenant e tem pendências
+        const [inspData] = await db
+            .select({ inspection: inspections })
+            .from(inspections)
+            .innerJoin(projects, eq(inspections.projectId, projects.id))
+            .where(
+                and(
+                    eq(inspections.id, inspectionId),
+                    eq(projects.tenantId, tenant.id),
+                    eq(inspections.status, 'COMPLETED'),
+                )
+            )
+            .limit(1)
+
+        if (!inspData) return { error: 'Inspeção não encontrada ou não pode ser revisada' }
+
+        // Buscar todos os items
+        const allItems = await db
+            .select()
+            .from(inspectionItems)
+            .where(eq(inspectionItems.inspectionId, inspectionId))
+
+        const ncItems = allItems.filter((i) => i.evaluation === 'NC')
+        const newResult = ncItems.length > 0 ? 'APPROVED_WITH_RESTRICTIONS' : 'APPROVED'
+
+        // Atualizar resultado da inspeção
+        const [updated] = await db
+            .update(inspections)
+            .set({
+                result: newResult,
+                updatedAt: new Date(),
+                ...(newResult === 'APPROVED' ? { approvedAt: new Date() } : {}),
+            })
+            .where(eq(inspections.id, inspectionId))
+            .returning()
+
+        // Se aprovada, resolver todas as pendências abertas desta inspeção
+        if (newResult === 'APPROVED') {
+            await db
+                .update(issues)
+                .set({
+                    status: 'RESOLVED',
+                    resolvedAt: new Date(),
+                    updatedAt: new Date(),
+                    notes: 'Resolvida automaticamente após revisão da inspeção',
+                })
+                .where(
+                    and(
+                        eq(issues.inspectionId, inspectionId),
+                        sql`${issues.status} IN ('OPEN', 'IN_PROGRESS')`
+                    )
+                )
+        }
+
+        logger.info(
+            { userId: user.id, inspectionId, result: newResult, action: 'inspection.revised' },
+            'Inspeção revisada'
+        )
+
+        revalidatePath(`/${tenant.slug}/inspections`)
+        revalidatePath(`/${tenant.slug}/issues`)
+
+        return { data: updated }
+    } catch (err) {
+        logger.error({ err, inspectionId }, 'Erro ao revisar inspeção')
+        return { error: 'Erro ao revisar inspeção' }
+    }
+}
+
+/**
+ * Migra inspeções legado com resultado REJECTED:
+ * - Cria pendências para os itens NC que não tinham
+ * - Atualiza resultado para APPROVED_WITH_RESTRICTIONS
+ */
+export async function migrateRejectedInspection(inspectionId: string) {
+    const { user, tenant } = await getAuthContext()
+
+    try {
+        // Verificar que é uma inspeção REJECTED do tenant
+        const [inspData] = await db
+            .select({ inspection: inspections })
+            .from(inspections)
+            .innerJoin(projects, eq(inspections.projectId, projects.id))
+            .where(
+                and(
+                    eq(inspections.id, inspectionId),
+                    eq(projects.tenantId, tenant.id),
+                    eq(inspections.result, 'REJECTED'),
+                )
+            )
+            .limit(1)
+
+        if (!inspData) return { error: 'Inspeção não encontrada' }
+
+        // Verificar se já existem pendências para esta inspeção
+        const existingIssues = await db
+            .select({ id: issues.id })
+            .from(issues)
+            .where(eq(issues.inspectionId, inspectionId))
+            .limit(1)
+
+        if (existingIssues.length > 0) {
+            // Já tem pendências, só atualizar resultado
+            await db
+                .update(inspections)
+                .set({ result: 'APPROVED_WITH_RESTRICTIONS', updatedAt: new Date() })
+                .where(eq(inspections.id, inspectionId))
+
+            revalidatePath(`/${tenant.slug}/inspections`)
+            return { data: { migrated: true, issuesCreated: 0 } }
+        }
+
+        // Buscar itens NC com critérios
+        const ncItems = await db
+            .select({
+                item: inspectionItems,
+                criterion: criteria,
+            })
+            .from(inspectionItems)
+            .innerJoin(criteria, eq(inspectionItems.criterionId, criteria.id))
+            .where(
+                and(
+                    eq(inspectionItems.inspectionId, inspectionId),
+                    eq(inspectionItems.evaluation, 'NC'),
+                )
+            )
+
+        // Criar pendências
+        if (ncItems.length > 0) {
+            await db.insert(issues).values(
+                ncItems.map((nc) => ({
+                    inspectionId,
+                    description: nc.item.notes
+                        ? `${nc.criterion.description} — ${nc.item.notes}`
+                        : nc.criterion.description,
+                }))
+            )
+        }
+
+        // Atualizar resultado
+        await db
+            .update(inspections)
+            .set({ result: 'APPROVED_WITH_RESTRICTIONS', updatedAt: new Date() })
+            .where(eq(inspections.id, inspectionId))
+
+        logger.info(
+            { userId: user.id, inspectionId, issuesCreated: ncItems.length, action: 'inspection.migrated' },
+            'Inspeção REJECTED migrada para APPROVED_WITH_RESTRICTIONS'
+        )
+
+        revalidatePath(`/${tenant.slug}/inspections`)
+        revalidatePath(`/${tenant.slug}/issues`)
+
+        return { data: { migrated: true, issuesCreated: ncItems.length } }
+    } catch (err) {
+        logger.error({ err, inspectionId }, 'Erro ao migrar inspeção')
+        return { error: 'Erro ao migrar inspeção' }
     }
 }

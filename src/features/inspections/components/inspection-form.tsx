@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, X, Minus, Loader2, CheckCircle2, AlertTriangle, Send, Camera, Trash2 } from 'lucide-react'
-import { evaluateItem, completeInspection, updateItemPhoto } from '../actions'
+import { Check, X, Minus, Loader2, CheckCircle2, AlertTriangle, Send, Camera, Trash2, RefreshCw } from 'lucide-react'
+import { evaluateItem, completeInspection, updateItemPhoto, reviseInspection, migrateRejectedInspection } from '../actions'
 import { uploadInspectionPhoto } from '@/lib/supabase/storage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -75,18 +75,26 @@ interface InspectionFormProps {
 /**
  * Formulário de avaliação FVS.
  * Inspetor marca cada critério como C (Conforme), NC (Não Conforme) ou NA (Não Aplicável).
+ * Inspeções com pendências podem ser revisadas para corrigir itens NC.
  */
 export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
     const router = useRouter()
     const [items, setItems] = useState(data.items)
     const [evaluatingId, setEvaluatingId] = useState<string | null>(null)
     const [completing, setCompleting] = useState(false)
+    const [revising, setRevising] = useState(false)
+    const [migrating, setMigrating] = useState(false)
     const [notesMap, setNotesMap] = useState<Record<string, string>>(
         Object.fromEntries(data.items.map((i) => [i.item.id, i.item.notes || '']))
     )
     const [uploadingId, setUploadingId] = useState<string | null>(null)
 
     const isCompleted = data.inspection.status === 'COMPLETED'
+    const hasPendencias = data.inspection.result === 'APPROVED_WITH_RESTRICTIONS'
+    const isRejectedLegacy = data.inspection.result === 'REJECTED'
+    const isApproved = data.inspection.result === 'APPROVED'
+    // Permitir edição quando NÃO está completada, OU quando tem pendências (revisão)
+    const canEdit = !isCompleted || hasPendencias
     const evaluatedCount = items.filter((i) => i.item.evaluation).length
     const totalCount = items.length
     const ncCount = items.filter((i) => i.item.evaluation === 'NC').length
@@ -189,6 +197,44 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
         }
     }
 
+    async function handleRevise() {
+        setRevising(true)
+        try {
+            const result = await reviseInspection(data.inspection.id)
+            if (result.error) {
+                toast.error(typeof result.error === 'string' ? result.error : 'Erro')
+            } else {
+                if (result.data?.result === 'APPROVED') {
+                    toast.success('Inspeção aprovada! Todas as pendências foram resolvidas.')
+                } else {
+                    toast.info(`Revisão salva — ainda ${ncCount > 1 ? 'restam' : 'resta'} ${ncCount} item${ncCount > 1 ? 's' : ''} NC`)
+                }
+                router.refresh()
+            }
+        } catch {
+            toast.error('Erro ao concluir revisão')
+        } finally {
+            setRevising(false)
+        }
+    }
+
+    async function handleMigrate() {
+        setMigrating(true)
+        try {
+            const result = await migrateRejectedInspection(data.inspection.id)
+            if (result.error) {
+                toast.error(typeof result.error === 'string' ? result.error : 'Erro')
+            } else {
+                toast.success(`${result.data?.issuesCreated} pendência${(result.data?.issuesCreated ?? 0) > 1 ? 's' : ''} criada${(result.data?.issuesCreated ?? 0) > 1 ? 's' : ''}`)
+                router.refresh()
+            }
+        } catch {
+            toast.error('Erro ao gerar pendências')
+        } finally {
+            setMigrating(false)
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Cabeçalho da inspeção */}
@@ -253,7 +299,14 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
             {/* Lista de critérios para avaliação */}
             <Card>
                 <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Critérios de Verificação</CardTitle>
+                    <CardTitle className="text-lg">
+                        {hasPendencias ? 'Revisão dos Critérios' : 'Critérios de Verificação'}
+                    </CardTitle>
+                    {hasPendencias && (
+                        <p className="text-sm text-muted-foreground">
+                            Corrija os itens não conformes e clique em &quot;Concluir Revisão&quot;
+                        </p>
+                    )}
                 </CardHeader>
                 <Separator />
                 <CardContent className="pt-4 space-y-3">
@@ -292,7 +345,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                                                             key={evalKey}
                                                             variant={isActive ? 'default' : 'outline'}
                                                             size="sm"
-                                                            disabled={isEvaluating || isCompleted}
+                                                            disabled={isEvaluating || !canEdit}
                                                             className={isActive ? config.color : ''}
                                                             onClick={() => handleEvaluate(item.item.id, evalKey)}
                                                         >
@@ -319,7 +372,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                                                         [item.item.id]: e.target.value,
                                                     }))
                                                 }
-                                                disabled={isCompleted}
+                                                disabled={!canEdit}
                                                 className="text-sm"
                                             />
                                         )}
@@ -337,7 +390,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                                                         <Camera className="h-3.5 w-3.5" />
                                                         Ver foto
                                                     </a>
-                                                    {!isCompleted && (
+                                                    {canEdit && (
                                                         <Button
                                                             variant="ghost"
                                                             size="sm"
@@ -350,7 +403,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                                                         </Button>
                                                     )}
                                                 </div>
-                                            ) : !isCompleted && (
+                                            ) : canEdit && (
                                                 <label className="cursor-pointer">
                                                     <input
                                                         type="file"
@@ -383,7 +436,7 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                 </CardContent>
             </Card>
 
-            {/* Botão de finalizar */}
+            {/* Botão de finalizar (inspeção nova, não completada) */}
             {!isCompleted && (
                 <div className="flex justify-end">
                     <AlertDialog>
@@ -427,32 +480,109 @@ export function InspectionForm({ data, tenantSlug }: InspectionFormProps) {
                 </div>
             )}
 
-            {/* Resultado final */}
-            {isCompleted && data.inspection.result && (
-                <Card className={
-                    data.inspection.result === 'APPROVED'
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20'
-                        : 'border-amber-500 bg-amber-50/50 dark:bg-amber-950/20'
-                }>
+            {/* Botão de concluir revisão (inspeção com pendências) */}
+            {hasPendencias && (
+                <div className="flex justify-end">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button size="lg" variant={ncCount === 0 ? 'default' : 'outline'} disabled={revising}>
+                                {revising ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Salvando revisão...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                        Concluir Revisão
+                                    </>
+                                )}
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Concluir revisão?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    {ncCount === 0
+                                        ? 'Todos os itens estão conformes. A inspeção será aprovada e todas as pendências serão resolvidas automaticamente.'
+                                        : `Ainda ${ncCount > 1 ? 'restam' : 'resta'} ${ncCount} item${ncCount > 1 ? 's' : ''} não conforme${ncCount > 1 ? 's' : ''}. A revisão será salva mas a inspeção continuará com pendências.`
+                                    }
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleRevise}>
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                    Confirmar
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
+            )}
+
+            {/* Resultado: Aprovada */}
+            {isCompleted && isApproved && (
+                <Card className="border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20">
                     <CardContent className="pt-6 flex items-center gap-3">
-                        {data.inspection.result === 'APPROVED' ? (
-                            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-                        ) : (
-                            <AlertTriangle className="h-8 w-8 text-amber-600" />
-                        )}
+                        <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                         <div>
-                            <p className="font-bold text-lg">
-                                {data.inspection.result === 'APPROVED'
-                                    ? 'Inspeção Aprovada'
-                                    : 'Inspeção Concluída com Pendências'
-                                }
-                            </p>
+                            <p className="font-bold text-lg">Inspeção Aprovada</p>
                             <p className="text-sm text-muted-foreground">
-                                {data.inspection.result === 'APPROVED'
-                                    ? 'Todos os critérios foram avaliados como conformes'
-                                    : `${ncCount} pendência${ncCount > 1 ? 's' : ''} ${ncCount > 1 ? 'foram criadas' : 'foi criada'} automaticamente para resolução`
-                                }
+                                Todos os critérios foram avaliados como conformes
                             </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Resultado: Com Pendências */}
+            {isCompleted && hasPendencias && (
+                <Card className="border-amber-500 bg-amber-50/50 dark:bg-amber-950/20">
+                    <CardContent className="pt-6 flex items-center gap-3">
+                        <AlertTriangle className="h-8 w-8 text-amber-600" />
+                        <div>
+                            <p className="font-bold text-lg">Inspeção com Pendências</p>
+                            <p className="text-sm text-muted-foreground">
+                                {ncCount} item{ncCount > 1 ? 's' : ''} não conforme{ncCount > 1 ? 's' : ''} — corrija os itens acima e clique em &quot;Concluir Revisão&quot;
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Resultado: Reprovada legado (REJECTED sem pendências criadas) */}
+            {isCompleted && isRejectedLegacy && (
+                <Card className="border-red-500 bg-red-50/50 dark:bg-red-950/20">
+                    <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="h-8 w-8 text-red-600 shrink-0" />
+                            <div>
+                                <p className="font-bold text-lg">Inspeção Reprovada (legado)</p>
+                                <p className="text-sm text-muted-foreground">
+                                    Esta inspeção foi concluída antes do sistema de pendências automáticas.
+                                    Clique abaixo para gerar as pendências e permitir o acompanhamento.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <Button
+                                onClick={handleMigrate}
+                                disabled={migrating}
+                                variant="outline"
+                            >
+                                {migrating ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Gerando pendências...
+                                    </>
+                                ) : (
+                                    <>
+                                        <RefreshCw className="mr-2 h-4 w-4" />
+                                        Gerar Pendências
+                                    </>
+                                )}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
