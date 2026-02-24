@@ -37,32 +37,27 @@ export async function listProjects(options?: {
 
         const totalItems = queryCount[0]?.count || 0
 
-        const result = await db
+        const rows = await db
             .select({
                 project: projects,
-                stats: {
-                    total: sql<number>`(
-                        SELECT COUNT(*) 
-                        FROM ${inspections} 
-                        WHERE ${inspections.projectId} = ${projects.id} 
-                        AND ${inspections.result} IS NOT NULL
-                    )`.mapWith(Number),
-                    approved: sql<number>`(
-                        SELECT COUNT(*) 
-                        FROM ${inspections} 
-                        WHERE ${inspections.projectId} = ${projects.id} 
-                        AND ${inspections.result} IN ('APPROVED', 'APPROVED_WITH_RESTRICTIONS')
-                    )`.mapWith(Number),
-                }
+                total: sql<number>`count(case when ${inspections.result} is not null then 1 end)`.mapWith(Number),
+                approved: sql<number>`count(case when ${inspections.result} in ('APPROVED', 'APPROVED_WITH_RESTRICTIONS') then 1 end)`.mapWith(Number),
             })
             .from(projects)
+            .leftJoin(inspections, eq(inspections.projectId, projects.id))
             .where(and(...filters))
+            .groupBy(projects.id)
             .limit(limit)
             .offset(offset)
             .orderBy(projects.name)
 
+        const data = rows.map((r) => ({
+            project: r.project,
+            stats: { total: r.total, approved: r.approved },
+        }))
+
         return {
-            data: result,
+            data,
             meta: { totalItems, page, limit }
         }
     } catch (err) {
