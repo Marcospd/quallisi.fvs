@@ -104,20 +104,13 @@ export default async function HomePage() {
           Fichas de Verificação de Serviço 100% digitais, inspeções em tempo real
           e relatórios automatizados.
         </p>
-        <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+        <div className="mt-10">
           <a
             href="#planos"
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-emerald-500"
+            className="inline-flex items-center rounded-lg bg-emerald-600 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-emerald-500"
           >
             Ver Planos
-            <ArrowRight className="h-4 w-4" />
           </a>
-          <Link
-            href="/login"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-600 px-8 py-3.5 text-base font-medium text-slate-300 transition-colors hover:bg-slate-800"
-          >
-            Já tenho conta
-          </Link>
         </div>
       </section>
 
