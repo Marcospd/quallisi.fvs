@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Building2, MapPin, Edit2, MoreVertical, Power, FileText, Settings } from 'lucide-react'
+import { Building2, MapPin, Edit2, MoreVertical, Power, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InferSelectModel } from 'drizzle-orm'
 
@@ -155,11 +155,7 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="grid grid-cols-2 gap-1.5 p-3 pt-0">
-                    <Button variant="outline" className="w-full text-[11px] h-7" disabled>
-                        <FileText className="mr-1 h-3 w-3" />
-                        Relatórios
-                    </Button>
+                <div className="p-3 pt-0">
                     <Button asChild className="w-full text-[11px] h-7">
                         <Link href={`/${tenant.slug}/locations?projectId=${project.id}`}>
                             <Settings className="mr-1 h-3 w-3" />
