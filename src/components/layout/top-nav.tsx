@@ -52,7 +52,7 @@ export function TopNav() {
         'projects': 'Obras',
         'locations': 'Locais de Inspeção',
         'services': 'Fichas de Serviço',
-        'team': 'Equipe e Inspetores',
+        'team': 'Gestão de Acessos',
         'inspections': 'Inspeções FVS',
         'planning': 'Planejamento',
         'issues': 'Pendências',

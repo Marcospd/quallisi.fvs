@@ -45,7 +45,7 @@ export function TenantSidebar() {
         { title: 'Obras', href: `${base}/projects`, icon: Building },
         { title: 'Locais', href: `${base}/locations`, icon: MapPin },
         { title: 'Serviços', href: `${base}/services`, icon: Wrench },
-        { title: 'Inspetores', href: `${base}/team`, icon: Users },
+        { title: 'Gestão de Acessos', href: `${base}/team`, icon: Users },
     ]
 
     const isActive = (href: string) => {

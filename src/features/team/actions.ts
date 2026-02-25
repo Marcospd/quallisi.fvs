@@ -8,7 +8,7 @@ import { getAuthContext } from '@/features/auth/actions'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sendEmail } from '@/lib/email/resend'
 import { memberInviteEmail } from '@/lib/email/templates'
-import { inviteMemberSchema, updateMemberRoleSchema, updateMemberSchema } from './schemas'
+import { inviteMemberSchema, updateMemberRoleSchema, updateMemberSchema, resetMemberPasswordSchema } from './schemas'
 import { logger } from '@/lib/logger'
 import { inviteLimiter } from '@/lib/rate-limit'
 
@@ -89,7 +89,7 @@ export async function inviteTeamMember(input: unknown) {
         return { error: parsed.error.flatten() }
     }
 
-    const { name, email, role } = parsed.data
+    const { name, email, role, sendInvite, password: manualPassword } = parsed.data
 
     try {
         // Verificar se já existe no tenant
@@ -103,13 +103,17 @@ export async function inviteTeamMember(input: unknown) {
             return { error: 'Este e-mail já está cadastrado na equipe' }
         }
 
+        // Definir senha: manual (admin) ou temporária (convite)
+        const password = sendInvite
+            ? crypto.randomUUID().slice(0, 12)
+            : manualPassword!
+
         // Criar usuário no Supabase Auth
         const admin = createAdminClient()
-        const tempPassword = crypto.randomUUID().slice(0, 12)
 
         const { data: authData, error: authError } = await admin.auth.admin.createUser({
             email,
-            password: tempPassword,
+            password,
             email_confirm: true,
         })
 
@@ -160,17 +164,19 @@ export async function inviteTeamMember(input: unknown) {
             })
             .returning()
 
-        // Enviar e-mail de convite (fire-and-forget)
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-        const emailContent = memberInviteEmail({
-            name,
-            tenantName: tenant.name,
-            role,
-            email,
-            tempPassword,
-            link: `${appUrl}/login`,
-        })
-        sendEmail({ to: email, ...emailContent }).catch(() => { })
+        // Enviar e-mail de convite (fire-and-forget) — apenas se sendInvite ativo
+        if (sendInvite) {
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+            const emailContent = memberInviteEmail({
+                name,
+                tenantName: tenant.name,
+                role,
+                email,
+                tempPassword: password,
+                link: `${appUrl}/login`,
+            })
+            sendEmail({ to: email, ...emailContent }).catch(() => { })
+        }
 
         logger.info(
             { userId: newUser.id, tenantId: tenant.id, invitedBy: user.id, action: 'team.invite' },
@@ -320,5 +326,60 @@ export async function updateMember(userId: string, input: unknown) {
     } catch (err) {
         logger.error({ err, userId }, 'Erro ao atualizar membro')
         return { error: 'Erro ao atualizar membro' }
+    }
+}
+
+/**
+ * Redefine a senha de um membro da equipe.
+ * Somente admins podem redefinir senhas de outros membros.
+ */
+export async function resetMemberPassword(input: unknown) {
+    const { user, tenant } = await getAuthContext()
+
+    if (user.role !== 'admin') {
+        return { error: 'Sem permissão para redefinir senhas' }
+    }
+
+    const parsed = resetMemberPasswordSchema.safeParse(input)
+    if (!parsed.success) {
+        return { error: parsed.error.flatten() }
+    }
+
+    const { userId, password } = parsed.data
+
+    if (userId === user.id) {
+        return { error: 'Use a opção "Alterar Senha" nas configurações da sua conta' }
+    }
+
+    try {
+        // Buscar o membro no tenant para obter o authId
+        const [member] = await db
+            .select()
+            .from(users)
+            .where(and(eq(users.id, userId), eq(users.tenantId, tenant.id)))
+            .limit(1)
+
+        if (!member) return { error: 'Membro não encontrado' }
+
+        // Atualizar senha no Supabase Auth
+        const admin = createAdminClient()
+        const { error: authError } = await admin.auth.admin.updateUserById(member.authId, {
+            password,
+        })
+
+        if (authError) {
+            logger.error({ err: authError, userId }, 'Erro ao redefinir senha no auth')
+            return { error: 'Erro ao redefinir senha' }
+        }
+
+        logger.info(
+            { targetId: userId, tenantId: tenant.id, resetBy: user.id, action: 'team.password_reset' },
+            'Senha de membro redefinida'
+        )
+
+        return { data: { success: true } }
+    } catch (err) {
+        logger.error({ err, userId }, 'Erro ao redefinir senha')
+        return { error: 'Erro ao redefinir senha' }
     }
 }

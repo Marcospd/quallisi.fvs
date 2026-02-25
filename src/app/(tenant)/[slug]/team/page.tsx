@@ -10,7 +10,7 @@ import { TeamTable } from '@/features/team/components/team-table'
 import { InviteMemberDialog } from '@/features/team/components/invite-member-dialog'
 
 export const metadata = {
-    title: 'Equipe — Quallisy FVS',
+    title: 'Gestão de Acessos — Quallisy FVS',
 }
 
 /**
@@ -37,9 +37,9 @@ export default async function TeamPage({
         <div className="flex min-h-full flex-1 flex-col gap-6 p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Equipe</h1>
+                    <h1 className="text-2xl font-bold">Gestão de Acessos</h1>
                     <p className="text-muted-foreground">
-                        Gerencie os inspetores e supervisores da sua construtora
+                        Gerencie os usuários e permissões de acesso da sua construtora
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
