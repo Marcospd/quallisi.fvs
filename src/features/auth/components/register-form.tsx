@@ -35,12 +35,19 @@ type Plan = {
     maxFvsMonth: number
 }
 
+type RegisterFormProps = {
+    plans: Plan[]
+    preselectedPlanId?: string
+}
+
 /**
  * Formulario de cadastro de empresa (construtora).
  * Recebe planos disponiveis como prop (carregados no server component).
+ * Se preselectedPlanId for passado, o campo de plano fica travado.
  */
-export function RegisterForm({ plans }: { plans: Plan[] }) {
+export function RegisterForm({ plans, preselectedPlanId }: RegisterFormProps) {
     const [isPending, setIsPending] = useState(false)
+    const isPlanLocked = !!preselectedPlanId
 
     const form = useForm<TenantRegisterInput>({
         resolver: zodResolver(tenantRegisterSchema),
@@ -49,7 +56,7 @@ export function RegisterForm({ plans }: { plans: Plan[] }) {
             name: '',
             email: '',
             password: '',
-            planId: '',
+            planId: preselectedPlanId ?? '',
         },
     })
 
@@ -113,7 +120,7 @@ export function RegisterForm({ plans }: { plans: Plan[] }) {
                             <Select
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
-                                disabled={isPending}
+                                disabled={isPending || isPlanLocked}
                             >
                                 <FormControl>
                                     <SelectTrigger className="w-full">
@@ -128,6 +135,14 @@ export function RegisterForm({ plans }: { plans: Plan[] }) {
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {isPlanLocked && (
+                                <p className="text-xs text-muted-foreground">
+                                    Plano selecionado na página anterior.{' '}
+                                    <Link href="/#planos" className="text-primary underline-offset-4 hover:underline">
+                                        Alterar plano
+                                    </Link>
+                                </p>
+                            )}
                             <FormMessage />
                         </FormItem>
                     )}

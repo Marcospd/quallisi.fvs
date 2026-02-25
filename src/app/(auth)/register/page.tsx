@@ -17,11 +17,17 @@ export const metadata = {
     description: 'Cadastre sua construtora na plataforma Quallisy FVS',
 }
 
+type Props = {
+    searchParams: Promise<{ plano?: string }>
+}
+
 /**
  * Pagina de cadastro publico de empresa.
- * Rota: /register
+ * Rota: /register?plano=starter|pro|enterprise
  */
-export default async function RegisterPage() {
+export default async function RegisterPage({ searchParams }: Props) {
+    const { plano } = await searchParams
+
     const activePlans = await db
         .select({
             id: plans.id,
@@ -34,6 +40,13 @@ export default async function RegisterPage() {
         .from(plans)
         .where(eq(plans.active, true))
 
+    // Match plan by slug (name lowercased, spaces replaced with dashes)
+    const preselectedPlan = plano
+        ? activePlans.find(
+              (p) => p.name.toLowerCase().replace(/\s+/g, '-') === plano.toLowerCase()
+          )
+        : undefined
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
             <Card className="w-full max-w-md">
@@ -44,7 +57,10 @@ export default async function RegisterPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <RegisterForm plans={activePlans} />
+                    <RegisterForm
+                        plans={activePlans}
+                        preselectedPlanId={preselectedPlan?.id}
+                    />
                 </CardContent>
             </Card>
         </div>
