@@ -13,7 +13,6 @@ import {
     CalendarDays,
     Plus,
     ArrowRight,
-    BarChart3,
 } from 'lucide-react'
 import {
     PieChart,
@@ -267,17 +266,6 @@ export function TenantDashboard({ stats, tenantSlug }: TenantDashboardProps) {
                                 <div className="text-left">
                                     <p className="text-sm font-medium">Planejamento</p>
                                     <p className="text-xs text-muted-foreground">Cronograma mensal</p>
-                                </div>
-                            </Button>
-                        </Link>
-                        <Link href={`/${tenantSlug}/stats`}>
-                            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3">
-                                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                    <BarChart3 className="h-4 w-4" />
-                                </div>
-                                <div className="text-left">
-                                    <p className="text-sm font-medium">Estatísticas</p>
-                                    <p className="text-xs text-muted-foreground">KPIs detalhados</p>
                                 </div>
                             </Button>
                         </Link>
