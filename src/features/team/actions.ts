@@ -361,20 +361,25 @@ export async function resetMemberPassword(input: unknown) {
 
         if (!member) return { error: 'Membro não encontrado' }
 
+        logger.info(
+            { targetId: userId, authId: member.authId, email: member.email, tenantId: tenant.id },
+            'Iniciando redefinição de senha'
+        )
+
         // Atualizar senha no Supabase Auth
         const admin = createAdminClient()
-        const { error: authError } = await admin.auth.admin.updateUserById(member.authId, {
+        const { data: updateData, error: authError } = await admin.auth.admin.updateUserById(member.authId, {
             password,
         })
 
         if (authError) {
-            logger.error({ err: authError, userId }, 'Erro ao redefinir senha no auth')
+            logger.error({ err: authError, userId, authId: member.authId }, 'Erro ao redefinir senha no auth')
             return { error: 'Erro ao redefinir senha' }
         }
 
         logger.info(
-            { targetId: userId, tenantId: tenant.id, resetBy: user.id, action: 'team.password_reset' },
-            'Senha de membro redefinida'
+            { targetId: userId, authId: member.authId, authEmail: updateData.user?.email, tenantId: tenant.id, resetBy: user.id, action: 'team.password_reset' },
+            'Senha de membro redefinida com sucesso'
         )
 
         return { data: { success: true } }
