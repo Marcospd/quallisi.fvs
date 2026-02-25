@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Shield, ShieldCheck, HardHat, UserX, UserCheck, KeyRound } from 'lucide-react'
+import { Shield, ShieldCheck, HardHat, UserX, UserCheck } from 'lucide-react'
 import {
     Table,
     TableBody,
@@ -33,7 +33,6 @@ import {
 import { toast } from 'sonner'
 import { updateMemberRole, toggleMemberActive } from '../actions'
 import { EditTeamDialog } from './edit-team-dialog'
-import { ResetPasswordDialog } from './reset-password-dialog'
 import { Edit2 } from 'lucide-react'
 
 interface TeamMember {
@@ -60,7 +59,6 @@ const roleConfig: Record<string, { label: string; icon: React.ReactNode; variant
 export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
     const [updating, setUpdating] = useState<string | null>(null)
     const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
-    const [resetPasswordMember, setResetPasswordMember] = useState<TeamMember | null>(null)
 
     async function handleRoleChange(userId: string, role: string) {
         setUpdating(userId)
@@ -153,18 +151,6 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
                                                 >
                                                     <Edit2 className="h-4 w-4 text-muted-foreground" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        setResetPasswordMember(member)
-                                                    }}
-                                                    disabled={isDisabled}
-                                                    title="Redefinir senha"
-                                                >
-                                                    <KeyRound className="h-4 w-4 text-muted-foreground" />
-                                                </Button>
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
                                                         <Button
@@ -218,12 +204,6 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
                 currentUserId={currentUserId}
             />
 
-            <ResetPasswordDialog
-                memberId={resetPasswordMember?.id ?? null}
-                memberName={resetPasswordMember?.name ?? ''}
-                open={!!resetPasswordMember}
-                onOpenChange={(open) => !open && setResetPasswordMember(null)}
-            />
         </div>
     )
 }
