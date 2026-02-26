@@ -1,6 +1,7 @@
 'use server'
 
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, asc, desc } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { issues, inspections, projects, services, locations, users } from '@/lib/db/schema'
@@ -24,28 +25,53 @@ const updateIssueStatusSchema = z.object({
 /**
  * Lista pendências do tenant com dados da inspeção.
  */
-export async function listIssues(filter?: { status?: string }) {
-    const { tenant } = await getAuthContext()
+export async function listIssues(filter?: {
+    status?: string
+    sort?: string
+    order?: 'asc' | 'desc'
+}) {
+    const { user, tenant } = await getAuthContext()
+
+    const sortMap: Record<string, AnyColumn> = {
+        description: issues.description,
+        project: projects.name,
+        service: services.name,
+        location: locations.name,
+        month: inspections.referenceMonth,
+        status: issues.status,
+        date: issues.createdAt,
+    }
 
     try {
+        const sortColumn = sortMap[filter?.sort ?? '']
+        const orderFn = filter?.order === 'desc' ? desc : asc
+
+        const conditions = [eq(projects.tenantId, tenant.id)]
+
+        if (filter?.status) {
+            conditions.push(eq(issues.status, filter.status))
+        }
+
+        // Inspetor vê apenas pendências das suas inspeções
+        if (user.role === 'inspetor') {
+            conditions.push(eq(inspections.inspectorId, user.id))
+        }
+
         const result = await db
             .select({
                 issue: issues,
                 service: services,
                 location: locations,
                 inspection: inspections,
+                project: projects,
             })
             .from(issues)
             .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
             .innerJoin(services, eq(inspections.serviceId, services.id))
             .innerJoin(locations, eq(inspections.locationId, locations.id))
             .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(
-                filter?.status
-                    ? and(eq(projects.tenantId, tenant.id), eq(issues.status, filter.status))
-                    : eq(projects.tenantId, tenant.id)
-            )
-            .orderBy(desc(issues.createdAt))
+            .where(and(...conditions))
+            .orderBy(sortColumn ? orderFn(sortColumn) : desc(issues.createdAt))
 
         return { data: result }
     } catch (err) {

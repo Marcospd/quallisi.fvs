@@ -11,8 +11,15 @@ export const metadata = {
  * Página de gestão de billing/faturas.
  * Rota: /system/billing
  */
-export default async function BillingPage() {
-    const result = await listInvoices()
+export default async function BillingPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+    const sp = await searchParams
+    const sort = typeof sp.sort === 'string' ? sp.sort : undefined
+    const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
+    const result = await listInvoices({ sort, order })
 
     return (
         <div className="space-y-6 p-6">

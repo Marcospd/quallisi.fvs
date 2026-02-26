@@ -1,6 +1,7 @@
 'use server'
 
-import { eq } from 'drizzle-orm'
+import { eq, asc, desc } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { tenants } from '@/lib/db/schema'
 import { logger } from '@/lib/logger'
@@ -31,12 +32,25 @@ export async function getTenantBySlug(slug: string) {
  * Lista todos os tenants ativos.
  * Uso exclusivo do Painel SISTEMA — sem filtro de tenantId.
  */
-export async function listTenants() {
+export async function listTenants(options?: {
+    sort?: string
+    order?: 'asc' | 'desc'
+}) {
+    const sortMap: Record<string, AnyColumn> = {
+        name: tenants.name,
+        slug: tenants.slug,
+        status: tenants.status,
+        date: tenants.createdAt,
+    }
+
     try {
+        const sortColumn = sortMap[options?.sort ?? '']
+        const orderFn = options?.order === 'desc' ? desc : asc
+
         const result = await db
             .select()
             .from(tenants)
-            .orderBy(tenants.name)
+            .orderBy(sortColumn ? orderFn(sortColumn) : asc(tenants.name))
 
         return { data: result }
     } catch (err) {

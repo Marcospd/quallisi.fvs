@@ -12,6 +12,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { DataTableSortHeader } from '@/components/data-table-sort-header'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -118,10 +119,10 @@ export function InvoicesTable({ invoices }: { invoices: InvoiceRow[] }) {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Construtora</TableHead>
-                        <TableHead>Valor</TableHead>
-                        <TableHead>Vencimento</TableHead>
-                        <TableHead>Status</TableHead>
+                        <DataTableSortHeader column="tenant">Construtora</DataTableSortHeader>
+                        <DataTableSortHeader column="amount">Valor</DataTableSortHeader>
+                        <DataTableSortHeader column="dueDate">Vencimento</DataTableSortHeader>
+                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
                         <TableHead>Pagamento</TableHead>
                         <TableHead className="w-[70px]">Ações</TableHead>
                     </TableRow>

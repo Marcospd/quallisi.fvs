@@ -14,8 +14,15 @@ export const metadata = {
  * Página de gestão de construtoras (tenants).
  * Rota: /system/tenants
  */
-export default async function TenantsPage() {
-    const result = await listTenants()
+export default async function TenantsPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+    const sp = await searchParams
+    const sort = typeof sp.sort === 'string' ? sp.sort : undefined
+    const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
+    const result = await listTenants({ sort, order })
 
     return (
         <div className="space-y-6 p-6">

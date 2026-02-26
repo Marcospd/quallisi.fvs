@@ -23,6 +23,7 @@ export const inspections = pgTable('inspections', {
     status: varchar('status', { length: 20 }).notNull().default('DRAFT'),
     result: varchar('result', { length: 30 }),
     notes: text('notes'),
+    startedAt: timestamp('started_at'),
     completedAt: timestamp('completed_at'),
     approvedAt: timestamp('approved_at'),
     createdAt: timestamp('created_at').defaultNow(),
@@ -31,6 +32,8 @@ export const inspections = pgTable('inspections', {
     index('inspections_project_idx').on(table.projectId),
     index('inspections_inspector_idx').on(table.inspectorId),
     index('inspections_month_idx').on(table.referenceMonth),
+    index('inspections_status_idx').on(table.status),
+    index('inspections_result_idx').on(table.result),
 ])
 
 /**
@@ -47,4 +50,5 @@ export const inspectionItems = pgTable('inspection_items', {
     createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [
     index('inspection_items_inspection_idx').on(table.inspectionId),
+    index('inspection_items_evaluation_idx').on(table.evaluation),
 ])

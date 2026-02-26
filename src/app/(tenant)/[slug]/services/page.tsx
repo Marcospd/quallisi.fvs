@@ -23,8 +23,10 @@ export default async function ServicesPage({
     const page = typeof sp.page === 'string' ? parseInt(sp.page, 10) : 1
     const limit = typeof sp.limit === 'string' ? parseInt(sp.limit, 10) : 10
     const q = typeof sp.q === 'string' ? sp.q : undefined
+    const sort = typeof sp.sort === 'string' ? sp.sort : undefined
+    const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
 
-    const result = await listServices({ page, limit, q })
+    const result = await listServices({ page, limit, q, sort, order })
 
     return (
         <div className="flex min-h-full flex-1 flex-col gap-6 p-6">

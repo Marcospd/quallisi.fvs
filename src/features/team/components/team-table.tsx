@@ -10,6 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { DataTableSortHeader } from '@/components/data-table-sort-header'
 import { Badge } from '@/components/ui/badge'
 import {
     Select,
@@ -100,10 +101,10 @@ export function TeamTable({ members, currentUserId, isAdmin }: TeamTableProps) {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>E-mail</TableHead>
-                        <TableHead>Perfil</TableHead>
-                        <TableHead>Status</TableHead>
+                        <DataTableSortHeader column="name">Nome</DataTableSortHeader>
+                        <DataTableSortHeader column="email">E-mail</DataTableSortHeader>
+                        <DataTableSortHeader column="role">Perfil</DataTableSortHeader>
+                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
                         {isAdmin && <TableHead className="w-[120px]">Ações</TableHead>}
                     </TableRow>
                 </TableHeader>

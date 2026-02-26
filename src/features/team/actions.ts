@@ -1,6 +1,7 @@
 'use server'
 
-import { eq, and, count, ilike, or, SQL } from 'drizzle-orm'
+import { eq, and, count, ilike, or, asc, desc, SQL } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { users } from '@/lib/db/schema'
@@ -19,6 +20,8 @@ export async function listTeamMembers(options?: {
     q?: string
     page?: number
     limit?: number
+    sort?: string
+    order?: 'asc' | 'desc'
 }) {
     const { tenant } = await getAuthContext()
 
@@ -26,6 +29,13 @@ export async function listTeamMembers(options?: {
     const limit = options?.limit && options.limit > 0 ? options.limit : 10
     const offset = (page - 1) * limit
     const search = options?.q ? `%${options.q}%` : null
+
+    const sortMap: Record<string, AnyColumn> = {
+        name: users.name,
+        email: users.email,
+        role: users.role,
+        status: users.active,
+    }
 
     try {
         const filters: SQL[] = [eq(users.tenantId, tenant.id)]
@@ -47,13 +57,16 @@ export async function listTeamMembers(options?: {
 
         const totalItems = queryCount[0]?.count || 0
 
+        const sortColumn = sortMap[options?.sort ?? '']
+        const orderFn = options?.order === 'desc' ? desc : asc
+
         const result = await db
             .select()
             .from(users)
             .where(and(...filters))
             .limit(limit)
             .offset(offset)
-            .orderBy(users.name)
+            .orderBy(sortColumn ? orderFn(sortColumn) : asc(users.name))
 
         return {
             data: result,

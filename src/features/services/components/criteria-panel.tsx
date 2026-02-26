@@ -120,15 +120,20 @@ export function CriteriaPanel({ serviceId, onClose }: CriteriaPanelProps) {
 
     async function handleDelete(criterionId: string) {
         setDeletingId(criterionId)
+        // Optimistic update: remove da lista imediatamente
+        const previousList = criteriaList
+        setCriteriaList(prev => prev.filter(c => c.id !== criterionId))
         try {
             const result = await deleteCriterion(criterionId)
             if (result?.error) {
+                // Reverte em caso de erro
+                setCriteriaList(previousList)
                 toast.error(typeof result.error === 'string' ? result.error : 'Erro')
             } else {
                 toast.success('Critério removido')
-                await loadCriteria()
             }
         } catch {
+            setCriteriaList(previousList)
             toast.error('Erro ao remover critério')
         } finally {
             setDeletingId(null)

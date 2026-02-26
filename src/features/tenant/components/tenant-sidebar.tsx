@@ -23,6 +23,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar'
 
 /**
@@ -32,13 +33,17 @@ import {
 export function TenantSidebar() {
     const pathname = usePathname()
     const { tenant, user } = useTenant()
+    const { setOpenMobile, isMobile } = useSidebar()
     const base = `/${tenant.slug}`
 
     const operationItems = [
         { title: 'Dashboard', href: base, icon: LayoutDashboard },
         { title: 'Inspeções', href: `${base}/inspections`, icon: ClipboardCheck },
         { title: 'Pendências', href: `${base}/issues`, icon: AlertTriangle },
-        { title: 'Planejamento', href: `${base}/planning`, icon: CalendarDays },
+        // Planejamento só visível para admin/supervisor
+        ...(user.role !== 'inspetor'
+            ? [{ title: 'Planejamento', href: `${base}/planning`, icon: CalendarDays }]
+            : []),
     ]
 
     const configItems = [
@@ -70,7 +75,7 @@ export function TenantSidebar() {
                             {operationItems.map((item) => (
                                 <SidebarMenuItem key={item.href}>
                                     <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                                        <Link href={item.href}>
+                                        <Link href={item.href} onClick={() => isMobile && setOpenMobile(false)}>
                                             <item.icon className="h-4 w-4" />
                                             <span>{item.title}</span>
                                         </Link>
@@ -89,7 +94,7 @@ export function TenantSidebar() {
                                 {configItems.map((item) => (
                                     <SidebarMenuItem key={item.href}>
                                         <SidebarMenuButton asChild isActive={isActive(item.href)}>
-                                            <Link href={item.href}>
+                                            <Link href={item.href} onClick={() => isMobile && setOpenMobile(false)}>
                                                 <item.icon className="h-4 w-4" />
                                                 <span>{item.title}</span>
                                             </Link>

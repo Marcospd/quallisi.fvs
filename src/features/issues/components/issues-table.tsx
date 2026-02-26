@@ -10,6 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { DataTableSortHeader } from '@/components/data-table-sort-header'
 import {
     Select,
     SelectContent,
@@ -18,7 +19,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { StatusBadge } from '@/components/status-badge'
-import { Loader2, AlertTriangle, Wrench, MapPin, Calendar } from 'lucide-react'
+import { Loader2, AlertTriangle, Wrench, MapPin, Calendar, Building } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface IssueRow {
@@ -33,6 +34,7 @@ interface IssueRow {
     service: { id: string; name: string }
     location: { id: string; name: string }
     inspection: { id: string; referenceMonth: string }
+    project: { id: string; name: string }
 }
 
 type StatusVariant = 'success' | 'warning' | 'danger' | 'info' | 'neutral'
@@ -84,17 +86,18 @@ export function IssuesTable({ issues: data }: IssuesTableProps) {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Serviço</TableHead>
-                        <TableHead>Local</TableHead>
-                        <TableHead>Mês Ref.</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Criada em</TableHead>
+                        <DataTableSortHeader column="description">Descrição</DataTableSortHeader>
+                        <DataTableSortHeader column="project">Obra</DataTableSortHeader>
+                        <DataTableSortHeader column="service">Serviço</DataTableSortHeader>
+                        <DataTableSortHeader column="location">Local</DataTableSortHeader>
+                        <DataTableSortHeader column="month">Mês Ref.</DataTableSortHeader>
+                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
+                        <DataTableSortHeader column="date">Criada em</DataTableSortHeader>
                         <TableHead className="w-[160px]">Alterar Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {data.map(({ issue, service, location, inspection }) => {
+                    {data.map(({ issue, service, location, inspection, project }) => {
                         const status = statusConfig[issue.status] ?? { label: issue.status, variant: 'neutral' as const }
                         const isUpdating = updatingId === issue.id
 
@@ -119,6 +122,12 @@ export function IssuesTable({ issues: data }: IssuesTableProps) {
                                                 </p>
                                             )}
                                         </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Building className="h-3.5 w-3.5 shrink-0" />
+                                        <span className="text-sm font-semibold">{project.name}</span>
                                     </div>
                                 </TableCell>
                                 <TableCell>

@@ -113,6 +113,37 @@ export function memberInviteEmail(params: {
     }
 }
 
+export function inspectionAssignedEmail(params: {
+    inspectorName: string
+    serviceName: string
+    locationName: string
+    referenceMonth: string
+    assignedBy: string
+    link: string
+}): { subject: string; html: string } {
+    return {
+        subject: `Nova inspeção atribuída: ${params.serviceName} — ${params.locationName}`,
+        html: baseTemplate(`
+            <h2 style="color: #09090b; margin: 0 0 16px;">Nova Inspeção Atribuída</h2>
+            <p style="color: #3f3f46; line-height: 1.6;">
+                Olá <strong>${params.inspectorName}</strong>, uma nova inspeção foi agendada para você por <strong>${params.assignedBy}</strong>.
+            </p>
+            <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                <p style="margin: 0 0 8px; color: #1e40af; font-weight: bold;">Detalhes da Inspeção</p>
+                <p style="margin: 0 0 4px; color: #1e3a5f; font-size: 14px;">Serviço: <strong>${params.serviceName}</strong></p>
+                <p style="margin: 0 0 4px; color: #1e3a5f; font-size: 14px;">Local: <strong>${params.locationName}</strong></p>
+                <p style="margin: 0; color: #1e3a5f; font-size: 14px;">Vigência: <strong>${params.referenceMonth}</strong></p>
+            </div>
+            <p style="color: #71717a; font-size: 13px;">
+                O botão Iniciar ficará disponível quando o mês de vigência chegar.
+            </p>
+            <a href="${params.link}" style="display: inline-block; background: #18181b; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 500;">
+                Ver Inspeções
+            </a>
+        `),
+    }
+}
+
 export function issueResolvedEmail(params: {
     serviceName: string
     locationName: string

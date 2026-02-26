@@ -12,8 +12,15 @@ export const metadata = {
  * Página de pendências geradas por não-conformidades.
  * Rota: /[slug]/issues
  */
-export default async function IssuesPage() {
-    const result = await listIssues()
+export default async function IssuesPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+    const sp = await searchParams
+    const sort = typeof sp.sort === 'string' ? sp.sort : undefined
+    const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
+    const result = await listIssues({ sort, order })
 
     return (
         <div className="space-y-6 p-6">

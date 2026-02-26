@@ -23,6 +23,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { DataTableSortHeader } from '@/components/data-table-sort-header'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -83,10 +84,10 @@ export function TenantsTable({ tenants: data }: { tenants: Tenant[] }) {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Slug</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Cadastro</TableHead>
+                        <DataTableSortHeader column="name">Nome</DataTableSortHeader>
+                        <DataTableSortHeader column="slug">Slug</DataTableSortHeader>
+                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
+                        <DataTableSortHeader column="date">Cadastro</DataTableSortHeader>
                         <TableHead className="w-[70px]">Ações</TableHead>
                     </TableRow>
                 </TableHeader>

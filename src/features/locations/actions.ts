@@ -1,6 +1,7 @@
 'use server'
 
-import { eq, and, ilike, count, or, sql, SQL } from 'drizzle-orm'
+import { eq, and, ilike, count, or, sql, asc, desc, SQL } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { locations, projects } from '@/lib/db/schema'
@@ -17,6 +18,8 @@ export async function listLocations(options?: {
     q?: string
     page?: number
     limit?: number
+    sort?: string
+    order?: 'asc' | 'desc'
 }) {
     const { tenant } = await getAuthContext()
 
@@ -24,6 +27,13 @@ export async function listLocations(options?: {
     const limit = options?.limit && options.limit > 0 ? options.limit : 10
     const offset = (page - 1) * limit
     const search = options?.q ? `%${options.q}%` : null
+
+    const sortMap: Record<string, AnyColumn> = {
+        name: locations.name,
+        project: projects.name,
+        description: locations.description,
+        status: locations.active,
+    }
 
     try {
         const filters: SQL[] = [eq(projects.tenantId, tenant.id)]
@@ -48,6 +58,9 @@ export async function listLocations(options?: {
 
         const totalItems = queryCount[0]?.count || 0
 
+        const sortColumn = sortMap[options?.sort ?? '']
+        const orderFn = options?.order === 'desc' ? desc : asc
+
         const result = await db
             .select({
                 location: locations,
@@ -58,7 +71,7 @@ export async function listLocations(options?: {
             .where(and(...filters))
             .limit(limit)
             .offset(offset)
-            .orderBy(projects.name, locations.name)
+            .orderBy(...(sortColumn ? [orderFn(sortColumn)] : [projects.name, locations.name]))
 
         return {
             data: result,

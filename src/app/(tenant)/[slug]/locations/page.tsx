@@ -28,9 +28,11 @@ export default async function LocationsPage({
     const limit = typeof sp.limit === 'string' ? parseInt(sp.limit, 10) : 10
     const q = typeof sp.q === 'string' ? sp.q : undefined
     const projectId = typeof sp.projectId === 'string' ? sp.projectId : undefined
+    const sort = typeof sp.sort === 'string' ? sp.sort : undefined
+    const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
 
     const [locationsResult, projectsResult] = await Promise.all([
-        listLocations({ page, limit, q, projectId }),
+        listLocations({ page, limit, q, projectId, sort, order }),
         listProjects({ limit: 1000 })
     ])
 

@@ -24,9 +24,10 @@ const globalForDb = globalThis as unknown as {
 const conn = globalForDb.conn ?? postgres(connectionString, {
     prepare: false,
     ssl: 'require',
-    max: isProduction ? 1 : 10,
+    max: isProduction ? 1 : 3,
     idle_timeout: 20,
     connect_timeout: 15,
+    max_lifetime: 60 * 5,
 })
 
 if (!isProduction) {

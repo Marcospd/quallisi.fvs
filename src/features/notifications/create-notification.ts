@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { notifications, users, projects, inspections, services, locations } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { sendEmail } from '@/lib/email/resend'
-import { inspectionCompletedEmail, issueCreatedEmail, issueResolvedEmail } from '@/lib/email/templates'
+import { inspectionCompletedEmail, inspectionAssignedEmail, issueCreatedEmail, issueResolvedEmail } from '@/lib/email/templates'
 import { logger } from '@/lib/logger'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
@@ -114,6 +114,72 @@ export async function notifyInspectionCompleted(inspectionId: string, tenantSlug
         logger.info({ inspectionId, recipientCount: recipients.length }, 'Notificações de inspeção enviadas')
     } catch (err) {
         logger.error({ err, inspectionId }, 'Erro ao notificar inspeção concluída')
+    }
+}
+
+/**
+ * Notifica o inspetor quando uma inspeção é atribuída a ele.
+ * Envia notificação in-app (sino) + e-mail.
+ */
+export async function notifyInspectionAssigned(params: {
+    inspectionId: string
+    inspectorId: string
+    assignedByName: string
+    tenantSlug: string
+}) {
+    try {
+        const [inspData] = await db
+            .select({
+                inspection: inspections,
+                service: services,
+                location: locations,
+            })
+            .from(inspections)
+            .innerJoin(services, eq(inspections.serviceId, services.id))
+            .innerJoin(locations, eq(inspections.locationId, locations.id))
+            .where(eq(inspections.id, params.inspectionId))
+            .limit(1)
+
+        if (!inspData) return
+
+        const [inspector] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, params.inspectorId))
+            .limit(1)
+
+        if (!inspector) return
+
+        const link = `${APP_URL}/${params.tenantSlug}/inspections`
+
+        // Notificação in-app (sino)
+        await createInAppNotification({
+            userId: inspector.id,
+            type: 'INSPECTION_ASSIGNED',
+            title: 'Nova inspeção atribuída',
+            message: `${params.assignedByName} agendou a inspeção de ${inspData.service.name} em ${inspData.location.name} para ${inspData.inspection.referenceMonth}`,
+            link: `/${params.tenantSlug}/inspections`,
+        })
+
+        // E-mail
+        if (inspector.email) {
+            const email = inspectionAssignedEmail({
+                inspectorName: inspector.name,
+                serviceName: inspData.service.name,
+                locationName: inspData.location.name,
+                referenceMonth: inspData.inspection.referenceMonth,
+                assignedBy: params.assignedByName,
+                link,
+            })
+            await sendEmail({ to: inspector.email, ...email })
+        }
+
+        logger.info(
+            { inspectionId: params.inspectionId, inspectorId: params.inspectorId },
+            'Notificação de atribuição de inspeção enviada'
+        )
+    } catch (err) {
+        logger.error({ err, inspectionId: params.inspectionId }, 'Erro ao notificar atribuição de inspeção')
     }
 }
 

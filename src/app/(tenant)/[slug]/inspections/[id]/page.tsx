@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { getInspection } from '@/features/inspections/actions'
 import { ErrorState } from '@/components/error-state'
@@ -12,7 +12,7 @@ export const metadata = {
 }
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-    DRAFT: { label: 'Rascunho', variant: 'outline' },
+    DRAFT: { label: 'Agendada', variant: 'outline' },
     IN_PROGRESS: { label: 'Em andamento', variant: 'secondary' },
     COMPLETED: { label: 'Concluída', variant: 'default' },
 }
@@ -39,6 +39,35 @@ export default async function InspectionDetailPage({
 
     const { inspection } = result.data
     const status = statusConfig[inspection.status] ?? { label: inspection.status, variant: 'outline' as const }
+
+    // Guard: inspeção DRAFT sem startedAt não pode ser acessada (precisa do Play)
+    if (!inspection.startedAt && inspection.status === 'DRAFT') {
+        return (
+            <div className="space-y-6 p-6">
+                <div className="flex items-center gap-4">
+                    <Link href={`/${slug}/inspections`}>
+                        <Button variant="ghost" size="icon">
+                            <ArrowLeft className="h-4 w-4" />
+                        </Button>
+                    </Link>
+                    <div>
+                        <h1 className="text-2xl font-bold">Inspeção FVS</h1>
+                        <Badge variant="outline">Agendada</Badge>
+                    </div>
+                </div>
+                <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-12 text-center">
+                    <Clock className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h2 className="text-lg font-semibold mb-2">Inspeção ainda não iniciada</h2>
+                    <p className="text-muted-foreground max-w-md">
+                        Esta inspeção está agendada para {inspection.referenceMonth}. Use o botão Iniciar na lista de inspeções quando o mês de vigência chegar.
+                    </p>
+                    <Link href={`/${slug}/inspections`} className="mt-4">
+                        <Button variant="outline">Voltar para Inspeções</Button>
+                    </Link>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6 p-6">

@@ -26,9 +26,11 @@ export default async function TeamPage({
     const page = typeof sp.page === 'string' ? parseInt(sp.page, 10) : 1
     const limit = typeof sp.limit === 'string' ? parseInt(sp.limit, 10) : 10
     const q = typeof sp.q === 'string' ? sp.q : undefined
+    const sort = typeof sp.sort === 'string' ? sp.sort : undefined
+    const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
 
     const [result, auth] = await Promise.all([
-        listTeamMembers({ page, limit, q }),
+        listTeamMembers({ page, limit, q, sort, order }),
         getAuthContext()
     ])
     const isAdmin = auth.user.role === 'admin'

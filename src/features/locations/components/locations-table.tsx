@@ -11,6 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { DataTableSortHeader } from '@/components/data-table-sort-header'
 import { StatusBadge } from '@/components/status-badge'
 import { Power, MapPin, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -59,10 +60,10 @@ export function LocationsTable({ data, projects }: LocationsTableProps) {
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Local</TableHead>
-                        <TableHead>Obra</TableHead>
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Status</TableHead>
+                        <DataTableSortHeader column="name">Local</DataTableSortHeader>
+                        <DataTableSortHeader column="project">Obra</DataTableSortHeader>
+                        <DataTableSortHeader column="description">Descrição</DataTableSortHeader>
+                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
                         <TableHead className="w-[80px]">Ações</TableHead>
                     </TableRow>
                 </TableHeader>

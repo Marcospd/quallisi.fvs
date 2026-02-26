@@ -21,4 +21,5 @@ export const issues = pgTable('issues', {
 }, (table) => [
     index('issues_inspection_idx').on(table.inspectionId),
     index('issues_assigned_idx').on(table.assignedTo),
+    index('issues_status_idx').on(table.status),
 ])

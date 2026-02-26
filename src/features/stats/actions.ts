@@ -13,75 +13,67 @@ export async function getTenantStats() {
     const { tenant } = await getAuthContext()
 
     try {
-        // Total de inspeções
-        const [inspectionsCount] = await db
-            .select({ total: count() })
-            .from(inspections)
-            .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(eq(projects.tenantId, tenant.id))
+        const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
 
-        // Inspeções aprovadas
-        const [approvedCount] = await db
-            .select({ total: count() })
-            .from(inspections)
-            .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(and(eq(projects.tenantId, tenant.id), eq(inspections.result, 'APPROVED')))
-
-        // Inspeções com pendências (APPROVED_WITH_RESTRICTIONS ou REJECTED legado)
-        const [rejectedCount] = await db
-            .select({ total: count() })
-            .from(inspections)
-            .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(
-                and(
+        // Todas as 8 queries em paralelo — de ~8 round-trips sequenciais para 1
+        const [
+            [inspectionsCount],
+            [approvedCount],
+            [rejectedCount],
+            [pendingInspections],
+            [openIssues],
+            [resolvedIssues],
+            [activeProjects],
+            [plannedThisMonth],
+        ] = await Promise.all([
+            // Total de inspeções
+            db.select({ total: count() })
+                .from(inspections)
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(eq(projects.tenantId, tenant.id)),
+            // Inspeções aprovadas
+            db.select({ total: count() })
+                .from(inspections)
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(and(eq(projects.tenantId, tenant.id), eq(inspections.result, 'APPROVED'))),
+            // Inspeções com pendências
+            db.select({ total: count() })
+                .from(inspections)
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(and(
                     eq(projects.tenantId, tenant.id),
                     sql`${inspections.result} IN ('REJECTED', 'APPROVED_WITH_RESTRICTIONS')`
-                )
-            )
-
-        // Inspeções em aberto (DRAFT ou IN_PROGRESS)
-        const [pendingInspections] = await db
-            .select({ total: count() })
-            .from(inspections)
-            .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(
-                and(
+                )),
+            // Inspeções em aberto
+            db.select({ total: count() })
+                .from(inspections)
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(and(
                     eq(projects.tenantId, tenant.id),
                     sql`${inspections.status} IN ('DRAFT', 'IN_PROGRESS')`
-                )
-            )
-
-        // Pendências abertas
-        const [openIssues] = await db
-            .select({ total: count() })
-            .from(issues)
-            .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
-            .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(and(eq(projects.tenantId, tenant.id), eq(issues.status, 'OPEN')))
-
-        // Pendências resolvidas
-        const [resolvedIssues] = await db
-            .select({ total: count() })
-            .from(issues)
-            .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
-            .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(and(eq(projects.tenantId, tenant.id), eq(issues.status, 'RESOLVED')))
-
-        // Total de obras ativas
-        const [activeProjects] = await db
-            .select({ total: count() })
-            .from(projects)
-            .where(and(eq(projects.tenantId, tenant.id), eq(projects.active, true)))
-
-        // Itens planejados para o mês atual
-        const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
-        const [plannedThisMonth] = await db
-            .select({ total: count() })
-            .from(planningItems)
-            .innerJoin(projects, eq(planningItems.projectId, projects.id))
-            .where(
-                and(eq(projects.tenantId, tenant.id), eq(planningItems.referenceMonth, currentMonth))
-            )
+                )),
+            // Pendências abertas
+            db.select({ total: count() })
+                .from(issues)
+                .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(and(eq(projects.tenantId, tenant.id), eq(issues.status, 'OPEN'))),
+            // Pendências resolvidas
+            db.select({ total: count() })
+                .from(issues)
+                .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(and(eq(projects.tenantId, tenant.id), eq(issues.status, 'RESOLVED'))),
+            // Obras ativas
+            db.select({ total: count() })
+                .from(projects)
+                .where(and(eq(projects.tenantId, tenant.id), eq(projects.active, true))),
+            // Planejados mês atual
+            db.select({ total: count() })
+                .from(planningItems)
+                .innerJoin(projects, eq(planningItems.projectId, projects.id))
+                .where(and(eq(projects.tenantId, tenant.id), eq(planningItems.referenceMonth, currentMonth))),
+        ])
 
         // Taxa de conformidade
         const totalCompleted = (approvedCount?.total ?? 0) + (rejectedCount?.total ?? 0)

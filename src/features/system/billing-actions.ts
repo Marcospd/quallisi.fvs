@@ -1,6 +1,7 @@
 'use server'
 
-import { eq, desc } from 'drizzle-orm'
+import { eq, asc, desc } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { plans, subscriptions, invoices, tenants } from '@/lib/db/schema'
@@ -50,10 +51,23 @@ export async function listSubscriptions() {
 /**
  * Lista faturas com dados da assinatura e tenant.
  */
-export async function listInvoices() {
+export async function listInvoices(options?: {
+    sort?: string
+    order?: 'asc' | 'desc'
+}) {
     await getSystemAuthContext()
 
+    const sortMap: Record<string, AnyColumn> = {
+        tenant: tenants.name,
+        amount: invoices.amountBrl,
+        dueDate: invoices.dueDate,
+        status: invoices.status,
+    }
+
     try {
+        const sortColumn = sortMap[options?.sort ?? '']
+        const orderFn = options?.order === 'desc' ? desc : asc
+
         const result = await db
             .select({
                 invoice: invoices,
@@ -63,7 +77,7 @@ export async function listInvoices() {
             .from(invoices)
             .innerJoin(subscriptions, eq(invoices.subscriptionId, subscriptions.id))
             .innerJoin(tenants, eq(subscriptions.tenantId, tenants.id))
-            .orderBy(desc(invoices.dueDate))
+            .orderBy(sortColumn ? orderFn(sortColumn) : desc(invoices.dueDate))
 
         return { data: result }
     } catch (err) {

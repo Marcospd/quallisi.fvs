@@ -1,7 +1,8 @@
 'use server'
 
+import { cache } from 'react'
 import { redirect } from 'next/navigation'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { createClient } from '@/lib/supabase/server'
 import { db } from '@/lib/db'
 import { users, tenants, systemUsers, plans, subscriptions } from '@/lib/db/schema'
@@ -15,9 +16,12 @@ import type { AuthContext, SystemAuthContext } from './types'
  * Retorna o usuário e tenant do contexto.
  * Usar em toda server action que precisa de auth.
  *
+ * cache() garante que dentro do mesmo render tree (SSR), a função execute
+ * apenas uma vez, evitando queries duplicadas de auth por requisição.
+ *
  * @throws Redireciona para /login se não autenticado
  */
-export async function getAuthContext(): Promise<AuthContext> {
+export const getAuthContext = cache(async (): Promise<AuthContext> => {
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -25,35 +29,21 @@ export async function getAuthContext(): Promise<AuthContext> {
         redirect('/login')
     }
 
-    const [dbUser] = await db
-        .select()
+    // Uma única query JOIN busca user + tenant, eliminando 1 round-trip ao banco
+    const [result] = await db
+        .select({ user: users, tenant: tenants })
         .from(users)
+        .innerJoin(tenants, and(eq(users.tenantId, tenants.id), eq(tenants.status, 'ACTIVE')))
         .where(eq(users.authId, authUser.id))
         .limit(1)
 
-    if (!dbUser) {
-        logger.error({ authId: authUser.id }, 'Usuário autenticado sem registro no banco')
+    if (!result) {
+        logger.error({ authId: authUser.id }, 'Usuário sem registro ou tenant inativo')
         redirect('/login')
     }
 
-    const [tenant] = await db
-        .select()
-        .from(tenants)
-        .where(eq(tenants.id, dbUser.tenantId))
-        .limit(1)
-
-    if (!tenant) {
-        logger.error({ userId: dbUser.id, tenantId: dbUser.tenantId }, 'Tenant não encontrado')
-        redirect('/login')
-    }
-
-    if (tenant.status !== 'ACTIVE') {
-        logger.warn({ tenantId: tenant.id, status: tenant.status }, 'Tentativa de acesso a tenant inativo')
-        redirect('/login')
-    }
-
-    return { user: dbUser, tenant }
-}
+    return { user: result.user, tenant: result.tenant }
+})
 
 /**
  * Obtém o contexto de autenticação do Painel SISTEMA.
@@ -61,7 +51,7 @@ export async function getAuthContext(): Promise<AuthContext> {
  *
  * @throws Redireciona para /system/login se não autenticado
  */
-export async function getSystemAuthContext(): Promise<SystemAuthContext> {
+export const getSystemAuthContext = cache(async (): Promise<SystemAuthContext> => {
     const supabase = await createClient()
     const { data: { user: authUser } } = await supabase.auth.getUser()
 
@@ -85,7 +75,7 @@ export async function getSystemAuthContext(): Promise<SystemAuthContext> {
     }
 
     return { user: systemUser }
-}
+})
 
 /**
  * Login com e-mail e senha.
@@ -119,31 +109,26 @@ export async function login(input: unknown) {
         const { data: { user: authUser } } = await supabase.auth.getUser()
 
         if (authUser) {
-            const [systemUser] = await db
-                .select()
-                .from(systemUsers)
-                .where(eq(systemUsers.authId, authUser.id))
-                .limit(1)
+            // Busca system user e tenant user em paralelo (1 round-trip ao invés de 3)
+            const [[systemUser], [tenantResult]] = await Promise.all([
+                db.select()
+                    .from(systemUsers)
+                    .where(eq(systemUsers.authId, authUser.id))
+                    .limit(1),
+                db.select({ user: users, tenant: tenants })
+                    .from(users)
+                    .innerJoin(tenants, eq(users.tenantId, tenants.id))
+                    .where(eq(users.authId, authUser.id))
+                    .limit(1),
+            ])
 
             if (systemUser) {
                 redirect('/system')
             }
 
-            const [dbUser] = await db
-                .select()
-                .from(users)
-                .where(eq(users.authId, authUser.id))
-                .limit(1)
-
-            if (dbUser) {
-                const [tenant] = await db
-                    .select()
-                    .from(tenants)
-                    .where(eq(tenants.id, dbUser.tenantId))
-                    .limit(1)
-
-                if (tenant?.status === 'ACTIVE') {
-                    redirect(`/${tenant.slug}`)
+            if (tenantResult) {
+                if (tenantResult.tenant.status === 'ACTIVE') {
+                    redirect(`/${tenantResult.tenant.slug}`)
                 } else {
                     await supabase.auth.signOut()
                     return { error: 'Acesso temporariamente suspenso. Entre em contato com o suporte.' }

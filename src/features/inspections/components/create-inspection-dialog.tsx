@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
-import { createInspection } from '../actions'
+import { createInspection, listTeamMembersForAssignment } from '../actions'
 import { listProjects } from '@/features/projects/actions'
 import { listLocations } from '@/features/locations/actions'
 import { listServices } from '@/features/services/actions'
@@ -24,6 +24,7 @@ import {
     SelectValue,
 } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 
 function getCurrentMonth(): string {
@@ -50,8 +51,15 @@ interface Service {
     criteriaCount: number
 }
 
+interface TeamMember {
+    id: string
+    name: string
+    role: string
+}
+
 /**
- * Dialog para criar uma nova inspeção FVS.
+ * Dialog para agendar uma nova inspeção FVS.
+ * Permite selecionar obra, serviço, local, inspetor responsável e mês/ano.
  */
 export function CreateInspectionDialog({
     children,
@@ -68,17 +76,20 @@ export function CreateInspectionDialog({
     const [projectsList, setProjectsList] = useState<Project[]>([])
     const [locationsList, setLocationsList] = useState<Location[]>([])
     const [servicesList, setServicesList] = useState<Service[]>([])
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
 
     const [selectedProject, setSelectedProject] = useState('')
     const [selectedLocation, setSelectedLocation] = useState('')
     const [selectedService, setSelectedService] = useState('')
+    const [selectedInspector, setSelectedInspector] = useState('')
+    const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
 
-    // Carregar obras e serviços quando o dialog abre
+    // Carregar obras, serviços e membros da equipe quando o dialog abre
     useEffect(() => {
         if (!open) return
         setLoading(true)
-        Promise.all([listProjects(), listServices()])
-            .then(([projectsResult, servicesResult]) => {
+        Promise.all([listProjects(), listServices(), listTeamMembersForAssignment()])
+            .then(([projectsResult, servicesResult, teamResult]) => {
                 if (projectsResult.data) {
                     setProjectsList(projectsResult.data.map(item => item.project).filter((p) => p.active) as Project[])
                 }
@@ -86,6 +97,9 @@ export function CreateInspectionDialog({
                     setServicesList(
                         (servicesResult.data as Service[]).filter((s) => s.active && s.criteriaCount > 0)
                     )
+                }
+                if (teamResult.data) {
+                    setTeamMembers(teamResult.data)
                 }
             })
             .finally(() => setLoading(false))
@@ -105,9 +119,20 @@ export function CreateInspectionDialog({
         })
     }, [selectedProject])
 
+    // Reset ao fechar
+    useEffect(() => {
+        if (!open) {
+            setSelectedProject('')
+            setSelectedLocation('')
+            setSelectedService('')
+            setSelectedInspector('')
+            setSelectedMonth(getCurrentMonth())
+        }
+    }, [open])
+
     async function handleCreate() {
-        if (!selectedProject || !selectedService || !selectedLocation) {
-            toast.error('Selecione obra, serviço e local')
+        if (!selectedProject || !selectedService || !selectedLocation || !selectedInspector || !selectedMonth) {
+            toast.error('Preencha todos os campos')
             return
         }
 
@@ -117,15 +142,16 @@ export function CreateInspectionDialog({
                 projectId: selectedProject,
                 serviceId: selectedService,
                 locationId: selectedLocation,
-                referenceMonth: getCurrentMonth(),
+                inspectorId: selectedInspector,
+                referenceMonth: selectedMonth,
             })
 
             if (result.error) {
                 toast.error(typeof result.error === 'string' ? result.error : 'Erro')
             } else if (result.data) {
-                toast.success('Inspeção criada! Redirecionando...')
+                toast.success('Inspeção agendada com sucesso')
                 setOpen(false)
-                router.push(`/${tenantSlug}/inspections/${result.data.id}`)
+                router.refresh()
             }
         } catch {
             toast.error('Erro ao criar inspeção')
@@ -139,9 +165,9 @@ export function CreateInspectionDialog({
             <DialogTrigger asChild>{children}</DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>Nova Inspeção FVS</DialogTitle>
+                    <DialogTitle>Agendar Inspeção FVS</DialogTitle>
                     <DialogDescription>
-                        Selecione a obra, serviço e local para iniciar uma inspeção
+                        Defina a obra, serviço, local, inspetor e mês de vigência
                     </DialogDescription>
                 </DialogHeader>
 
@@ -209,20 +235,45 @@ export function CreateInspectionDialog({
                             </Select>
                         </div>
 
+                        <div className="space-y-2">
+                            <Label>Inspetor Responsável</Label>
+                            <Select value={selectedInspector} onValueChange={setSelectedInspector}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecione o inspetor" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {teamMembers.map((m) => (
+                                        <SelectItem key={m.id} value={m.id}>
+                                            {m.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Mês de Vigência</Label>
+                            <Input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                            />
+                        </div>
+
                         <Button
                             onClick={handleCreate}
                             className="w-full"
                             disabled={
-                                isPending || !selectedProject || !selectedService || !selectedLocation
+                                isPending || !selectedProject || !selectedService || !selectedLocation || !selectedInspector || !selectedMonth
                             }
                         >
                             {isPending ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Criando...
+                                    Agendando...
                                 </>
                             ) : (
-                                'Criar Inspeção'
+                                'Agendar Inspeção'
                             )}
                         </Button>
                     </div>

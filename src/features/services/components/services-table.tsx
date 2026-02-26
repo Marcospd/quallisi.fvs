@@ -12,6 +12,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table'
+import { DataTableSortHeader } from '@/components/data-table-sort-header'
 import { EditServiceDialog } from './edit-service-dialog'
 import { Power, ChevronRight, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -62,10 +63,10 @@ export function ServicesTable({ services: data, onSelectService, selectedService
             <Table>
                 <TableHeader>
                     <TableRow>
-                        <TableHead>Serviço</TableHead>
-                        <TableHead>Descrição</TableHead>
+                        <DataTableSortHeader column="name">Serviço</DataTableSortHeader>
+                        <DataTableSortHeader column="description">Descrição</DataTableSortHeader>
                         <TableHead className="text-center">Critérios</TableHead>
-                        <TableHead>Status</TableHead>
+                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
                         <TableHead className="w-[100px]">Ações</TableHead>
                     </TableRow>
                 </TableHeader>

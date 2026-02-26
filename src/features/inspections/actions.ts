@@ -1,20 +1,58 @@
 'use server'
 
-import { eq, and, desc, sql } from 'drizzle-orm'
+import { eq, and, asc, desc, sql, count } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { inspections, inspectionItems, projects, services, locations, users, criteria, issues } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
 import { logger } from '@/lib/logger'
-import { notifyInspectionCompleted } from '@/features/notifications/create-notification'
+import { notifyInspectionCompleted, notifyInspectionAssigned } from '@/features/notifications/create-notification'
 
 /**
  * Lista inspeções do tenant atual com dados de serviço, local e inspetor.
+ * Inspetor vê apenas suas inspeções; admin/supervisor vê todas.
+ * Suporta paginação via page/limit.
  */
-export async function listInspections(projectId?: string) {
-    const { tenant } = await getAuthContext()
+export async function listInspections(options?: {
+    projectId?: string
+    sort?: string
+    order?: 'asc' | 'desc'
+    page?: number
+    limit?: number
+}) {
+    const { user, tenant } = await getAuthContext()
+
+    const page = options?.page && options.page > 0 ? options.page : 1
+    const limit = options?.limit && options.limit > 0 ? options.limit : 20
+    const offset = (page - 1) * limit
+
+    const sortMap: Record<string, AnyColumn> = {
+        service: services.name,
+        project: projects.name,
+        location: locations.name,
+        inspector: users.name,
+        month: inspections.referenceMonth,
+        status: inspections.status,
+        result: inspections.result,
+        date: inspections.createdAt,
+    }
 
     try {
+        const sortColumn = sortMap[options?.sort ?? '']
+        const orderFn = options?.order === 'desc' ? desc : asc
+
+        const conditions = [eq(projects.tenantId, tenant.id)]
+
+        if (options?.projectId) {
+            conditions.push(eq(inspections.projectId, options.projectId))
+        }
+
+        // Inspetor vê apenas suas inspeções
+        if (user.role === 'inspetor') {
+            conditions.push(eq(inspections.inspectorId, user.id))
+        }
+
         const baseQuery = db
             .select({
                 inspection: inspections,
@@ -28,15 +66,28 @@ export async function listInspections(projectId?: string) {
             .innerJoin(locations, eq(inspections.locationId, locations.id))
             .innerJoin(users, eq(inspections.inspectorId, users.id))
             .innerJoin(projects, eq(inspections.projectId, projects.id))
-            .where(
-                projectId
-                    ? and(eq(projects.tenantId, tenant.id), eq(inspections.projectId, projectId))
-                    : eq(projects.tenantId, tenant.id)
-            )
-            .orderBy(desc(inspections.createdAt))
+            .where(and(...conditions))
 
-        const result = await baseQuery
-        return { data: result }
+        const [countResult, result] = await Promise.all([
+            db
+                .select({ total: count() })
+                .from(inspections)
+                .innerJoin(projects, eq(inspections.projectId, projects.id))
+                .where(and(...conditions)),
+            baseQuery
+                .orderBy(sortColumn ? orderFn(sortColumn) : desc(inspections.createdAt))
+                .limit(limit)
+                .offset(offset),
+        ])
+
+        const totalItems = countResult[0]?.total ?? 0
+
+        return {
+            data: result,
+            meta: { totalItems, page, limit },
+            currentUserId: user.id,
+            currentUserRole: user.role,
+        }
     } catch (err) {
         logger.error({ err, tenantId: tenant.id }, 'Erro ao listar inspeções')
         return { error: 'Erro ao carregar inspeções' }
@@ -44,16 +95,22 @@ export async function listInspections(projectId?: string) {
 }
 
 /**
- * Cria uma nova inspeção FVS.
+ * Cria uma nova inspeção FVS (planejamento).
+ * Somente admin/supervisor podem criar. A inspeção nasce como DRAFT (agendada).
  * Gera os inspection_items automaticamente a partir dos critérios do serviço.
  */
 export async function createInspection(input: {
     projectId: string
     serviceId: string
     locationId: string
+    inspectorId: string
     referenceMonth: string
 }) {
     const { user, tenant } = await getAuthContext()
+
+    if (user.role === 'inspetor') {
+        return { error: 'Apenas gestores podem agendar inspeções' }
+    }
 
     try {
         // Verificar que a obra pertence ao tenant
@@ -65,6 +122,21 @@ export async function createInspection(input: {
 
         if (!project) return { error: 'Obra não encontrada' }
 
+        // Verificar que o inspetor pertence ao tenant e está ativo
+        const [inspector] = await db
+            .select()
+            .from(users)
+            .where(
+                and(
+                    eq(users.id, input.inspectorId),
+                    eq(users.tenantId, tenant.id),
+                    eq(users.active, true),
+                )
+            )
+            .limit(1)
+
+        if (!inspector) return { error: 'Inspetor não encontrado ou inativo' }
+
         // Buscar critérios do serviço
         const serviceCriteria = await db
             .select()
@@ -72,14 +144,14 @@ export async function createInspection(input: {
             .where(eq(criteria.serviceId, input.serviceId))
             .orderBy(criteria.sortOrder)
 
-        // Criar inspeção
+        // Criar inspeção (nasce como DRAFT, sem startedAt)
         const [inspection] = await db
             .insert(inspections)
             .values({
                 projectId: input.projectId,
                 serviceId: input.serviceId,
                 locationId: input.locationId,
-                inspectorId: user.id,
+                inspectorId: input.inspectorId,
                 referenceMonth: input.referenceMonth,
                 status: 'DRAFT',
             })
@@ -96,15 +168,219 @@ export async function createInspection(input: {
         }
 
         logger.info(
-            { userId: user.id, inspectionId: inspection.id, action: 'inspection.created' },
-            'Inspeção criada'
+            { userId: user.id, inspectionId: inspection.id, inspectorId: input.inspectorId, action: 'inspection.created' },
+            'Inspeção agendada'
         )
 
         revalidatePath(`/${tenant.slug}/inspections`)
+        revalidatePath(`/${tenant.slug}/planning`)
+
+        // Notificar inspetor por e-mail e sino (fire-and-forget)
+        notifyInspectionAssigned({
+            inspectionId: inspection.id,
+            inspectorId: input.inspectorId,
+            assignedByName: user.name,
+            tenantSlug: tenant.slug,
+        }).catch(() => {})
+
         return { data: inspection }
     } catch (err) {
         logger.error({ err }, 'Erro ao criar inspeção')
         return { error: 'Erro ao criar inspeção' }
+    }
+}
+
+/**
+ * Inicia uma inspeção (botão Play).
+ * Só funciona quando o mês/ano atual coincide com o referenceMonth.
+ * Captura a data de início automaticamente.
+ */
+export async function startInspection(inspectionId: string) {
+    const { user, tenant } = await getAuthContext()
+
+    try {
+        const [inspData] = await db
+            .select({ inspection: inspections })
+            .from(inspections)
+            .innerJoin(projects, eq(inspections.projectId, projects.id))
+            .where(
+                and(
+                    eq(inspections.id, inspectionId),
+                    eq(projects.tenantId, tenant.id),
+                )
+            )
+            .limit(1)
+
+        if (!inspData) return { error: 'Inspeção não encontrada' }
+
+        const insp = inspData.inspection
+
+        // Inspetor só pode iniciar inspeções atribuídas a ele
+        if (user.role === 'inspetor' && insp.inspectorId !== user.id) {
+            return { error: 'Você só pode iniciar inspeções atribuídas a você' }
+        }
+
+        if (insp.startedAt || insp.status !== 'DRAFT') {
+            return { error: 'Esta inspeção já foi iniciada' }
+        }
+
+        // Validar que referenceMonth é o mês atual
+        const now = new Date()
+        const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        if (insp.referenceMonth !== currentMonth) {
+            return { error: 'Só é possível iniciar inspeções do mês vigente' }
+        }
+
+        const [updated] = await db
+            .update(inspections)
+            .set({
+                startedAt: new Date(),
+                status: 'IN_PROGRESS',
+                updatedAt: new Date(),
+            })
+            .where(eq(inspections.id, inspectionId))
+            .returning()
+
+        logger.info(
+            { userId: user.id, inspectionId, action: 'inspection.started' },
+            'Inspeção iniciada (Play)'
+        )
+
+        revalidatePath(`/${tenant.slug}/inspections`)
+        revalidatePath(`/${tenant.slug}/planning`)
+        return { data: updated }
+    } catch (err) {
+        logger.error({ err, inspectionId }, 'Erro ao iniciar inspeção')
+        return { error: 'Erro ao iniciar inspeção' }
+    }
+}
+
+/**
+ * Atualiza o mês de vigência de uma inspeção agendada.
+ * Somente admin/supervisor; só para DRAFT sem startedAt.
+ */
+export async function updateInspectionMonth(inspectionId: string, referenceMonth: string) {
+    const { user, tenant } = await getAuthContext()
+
+    if (user.role === 'inspetor') {
+        return { error: 'Sem permissão' }
+    }
+
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(referenceMonth)) {
+        return { error: 'Formato de mês inválido' }
+    }
+
+    try {
+        const [inspData] = await db
+            .select({ inspection: inspections })
+            .from(inspections)
+            .innerJoin(projects, eq(inspections.projectId, projects.id))
+            .where(
+                and(
+                    eq(inspections.id, inspectionId),
+                    eq(projects.tenantId, tenant.id),
+                )
+            )
+            .limit(1)
+
+        if (!inspData) return { error: 'Inspeção não encontrada' }
+
+        if (inspData.inspection.startedAt || inspData.inspection.status !== 'DRAFT') {
+            return { error: 'Não é possível alterar o mês de uma inspeção já iniciada' }
+        }
+
+        const [updated] = await db
+            .update(inspections)
+            .set({ referenceMonth, updatedAt: new Date() })
+            .where(eq(inspections.id, inspectionId))
+            .returning()
+
+        logger.info(
+            { userId: user.id, inspectionId, referenceMonth, action: 'inspection.month_updated' },
+            'Vigência da inspeção atualizada'
+        )
+
+        revalidatePath(`/${tenant.slug}/inspections`)
+        revalidatePath(`/${tenant.slug}/planning`)
+        return { data: updated }
+    } catch (err) {
+        logger.error({ err, inspectionId }, 'Erro ao atualizar vigência')
+        return { error: 'Erro ao atualizar vigência' }
+    }
+}
+
+/**
+ * Lista inspeções para o painel de planejamento/monitoramento.
+ * Somente admin/supervisor. Suporta filtros por obra, mês e inspetor.
+ */
+export async function listInspectionsForPlanning(options?: {
+    projectId?: string
+    referenceMonth?: string
+    inspectorId?: string
+}) {
+    const { user, tenant } = await getAuthContext()
+
+    if (user.role === 'inspetor') {
+        return { error: 'Sem permissão' }
+    }
+
+    try {
+        const conditions = [eq(projects.tenantId, tenant.id)]
+
+        if (options?.projectId) {
+            conditions.push(eq(inspections.projectId, options.projectId))
+        }
+        if (options?.referenceMonth) {
+            conditions.push(eq(inspections.referenceMonth, options.referenceMonth))
+        }
+        if (options?.inspectorId) {
+            conditions.push(eq(inspections.inspectorId, options.inspectorId))
+        }
+
+        const result = await db
+            .select({
+                inspection: inspections,
+                project: projects,
+                service: services,
+                location: locations,
+                inspector: users,
+            })
+            .from(inspections)
+            .innerJoin(services, eq(inspections.serviceId, services.id))
+            .innerJoin(locations, eq(inspections.locationId, locations.id))
+            .innerJoin(users, eq(inspections.inspectorId, users.id))
+            .innerJoin(projects, eq(inspections.projectId, projects.id))
+            .where(and(...conditions))
+            .orderBy(desc(inspections.referenceMonth), services.name)
+
+        return { data: result }
+    } catch (err) {
+        logger.error({ err, tenantId: tenant.id }, 'Erro ao listar inspeções para planejamento')
+        return { error: 'Erro ao carregar planejamento' }
+    }
+}
+
+/**
+ * Lista membros ativos do tenant para o dropdown de atribuição de inspetor.
+ */
+export async function listTeamMembersForAssignment() {
+    const { tenant } = await getAuthContext()
+
+    try {
+        const result = await db
+            .select({
+                id: users.id,
+                name: users.name,
+                role: users.role,
+            })
+            .from(users)
+            .where(and(eq(users.tenantId, tenant.id), eq(users.active, true)))
+            .orderBy(users.name)
+
+        return { data: result }
+    } catch (err) {
+        logger.error({ err, tenantId: tenant.id }, 'Erro ao listar membros para atribuição')
+        return { error: 'Erro ao carregar membros' }
     }
 }
 

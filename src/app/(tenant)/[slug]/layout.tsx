@@ -1,8 +1,5 @@
 import { redirect } from 'next/navigation'
-import { eq } from 'drizzle-orm'
-import { createClient } from '@/lib/supabase/server'
-import { db } from '@/lib/db'
-import { tenants, users } from '@/lib/db/schema'
+import { getAuthContext } from '@/features/auth/actions'
 import { TenantProvider } from '@/features/tenant/components/tenant-provider'
 import { TenantSidebar } from '@/features/tenant/components/tenant-sidebar'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
@@ -10,8 +7,8 @@ import { TopNav } from '@/components/layout/top-nav'
 
 /**
  * Layout das rotas do tenant.
- * Verifica: auth → tenant existe → tenant ativo → usuário pertence ao tenant.
- * Injeta TenantProvider + Sidebar.
+ * Usa getAuthContext() com cache() — mesma execução é reaproveitada
+ * pelas pages e server actions do mesmo request, eliminando queries duplicadas.
  *
  * Rota: /[slug]/*
  */
@@ -24,42 +21,15 @@ export default async function TenantLayout({
 }) {
     const { slug } = await params
 
-    // 1. Verificar autenticação
-    const supabase = await createClient()
-    const { data: { user: authUser } } = await supabase.auth.getUser()
+    // getAuthContext() retorna user + tenant (1 query JOIN, cacheada por request)
+    const { user: dbUser, tenant } = await getAuthContext()
 
-    if (!authUser) {
+    // Verificar que o slug da URL corresponde ao tenant do usuário
+    if (tenant.slug !== slug) {
         redirect('/login')
     }
 
-    // 2. Buscar tenant pelo slug
-    const [tenant] = await db
-        .select()
-        .from(tenants)
-        .where(eq(tenants.slug, slug))
-        .limit(1)
-
-    if (!tenant) {
-        redirect('/login')
-    }
-
-    // 3. Verificar se tenant está ativo
-    if (tenant.status !== 'ACTIVE') {
-        redirect('/login')
-    }
-
-    // 4. Buscar usuário vinculado ao tenant
-    const [dbUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.authId, authUser.id))
-        .limit(1)
-
-    if (!dbUser || dbUser.tenantId !== tenant.id) {
-        redirect('/login')
-    }
-
-    // 5. Verificar se usuário está ativo
+    // Verificar se usuário está ativo
     if (!dbUser.active) {
         redirect('/login')
     }

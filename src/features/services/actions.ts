@@ -1,6 +1,7 @@
 'use server'
 
-import { eq, and, asc, count, ilike, sql } from 'drizzle-orm'
+import { eq, and, asc, desc, count, ilike, sql } from 'drizzle-orm'
+import type { AnyColumn } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { services, criteria } from '@/lib/db/schema'
@@ -15,6 +16,8 @@ export async function listServices(options?: {
     q?: string
     page?: number
     limit?: number
+    sort?: string
+    order?: 'asc' | 'desc'
 }) {
     const { tenant } = await getAuthContext()
     const page = options?.page && options.page > 0 ? options.page : 1
@@ -22,38 +25,46 @@ export async function listServices(options?: {
     const offset = (page - 1) * limit
     const search = options?.q ? `%${options.q}%` : null
 
+    const sortMap: Record<string, AnyColumn> = {
+        name: services.name,
+        description: services.description,
+        status: services.active,
+    }
+
     try {
         const filters = [eq(services.tenantId, tenant.id)]
         if (search) {
             filters.push(ilike(services.name, search))
         }
 
-        const queryCount = await db
-            .select({ count: count() })
-            .from(services)
-            .where(and(...filters))
-            .execute()
+        const sortColumn = sortMap[options?.sort ?? '']
+        const orderFn = options?.order === 'desc' ? desc : asc
+
+        // Count + data em paralelo
+        const [queryCount, result] = await Promise.all([
+            db.select({ count: count() })
+                .from(services)
+                .where(and(...filters)),
+            db.select({
+                    id: services.id,
+                    tenantId: services.tenantId,
+                    name: services.name,
+                    description: services.description,
+                    active: services.active,
+                    createdAt: services.createdAt,
+                    updatedAt: services.updatedAt,
+                    criteriaCount: count(criteria.id),
+                })
+                .from(services)
+                .leftJoin(criteria, eq(criteria.serviceId, services.id))
+                .where(and(...filters))
+                .groupBy(services.id)
+                .orderBy(sortColumn ? orderFn(sortColumn) : asc(services.name))
+                .limit(limit)
+                .offset(offset),
+        ])
 
         const totalItems = queryCount[0]?.count || 0
-
-        const result = await db
-            .select({
-                id: services.id,
-                tenantId: services.tenantId,
-                name: services.name,
-                description: services.description,
-                active: services.active,
-                createdAt: services.createdAt,
-                updatedAt: services.updatedAt,
-                criteriaCount: count(criteria.id),
-            })
-            .from(services)
-            .leftJoin(criteria, eq(criteria.serviceId, services.id))
-            .where(and(...filters))
-            .groupBy(services.id)
-            .orderBy(services.name)
-            .limit(limit)
-            .offset(offset)
 
         return {
             data: result,
