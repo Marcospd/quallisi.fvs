@@ -1,6 +1,17 @@
 import { z } from 'zod'
 
 /**
+ * Validação de senha forte: mín. 8 chars, 1 maiúscula, 1 minúscula, 1 dígito.
+ */
+const strongPassword = z
+    .string()
+    .min(8, 'Senha deve ter no mínimo 8 caracteres')
+    .max(72, 'Senha deve ter no máximo 72 caracteres')
+    .refine((val) => /[A-Z]/.test(val), 'Senha deve conter pelo menos 1 letra maiúscula')
+    .refine((val) => /[a-z]/.test(val), 'Senha deve conter pelo menos 1 letra minúscula')
+    .refine((val) => /[0-9]/.test(val), 'Senha deve conter pelo menos 1 número')
+
+/**
  * Schema de login — validação de e-mail e senha.
  * Mensagens em PT-BR.
  */
@@ -11,11 +22,11 @@ export const loginSchema = z.object({
         .email('E-mail inválido'),
     password: z
         .string()
-        .min(6, 'Senha deve ter no mínimo 6 caracteres'),
+        .min(8, 'Senha deve ter no mínimo 8 caracteres'),
 })
 
 /**
- * Schema de registro — e-mail, senha e nome.
+ * Schema de registro — e-mail, senha forte e nome.
  * Mensagens em PT-BR.
  */
 export const registerSchema = z.object({
@@ -27,10 +38,7 @@ export const registerSchema = z.object({
         .string()
         .min(1, 'E-mail é obrigatório')
         .email('E-mail inválido'),
-    password: z
-        .string()
-        .min(6, 'Senha deve ter no mínimo 6 caracteres')
-        .max(72, 'Senha deve ter no máximo 72 caracteres'),
+    password: strongPassword,
 })
 
 /**
@@ -58,13 +66,10 @@ export const forgotPasswordSchema = z.object({
 })
 
 /**
- * Schema de redefinição de senha — senha nova com confirmação.
+ * Schema de redefinição de senha — senha forte com confirmação.
  */
 export const resetPasswordSchema = z.object({
-    password: z
-        .string()
-        .min(6, 'Senha deve ter no mínimo 6 caracteres')
-        .max(72, 'Senha deve ter no máximo 72 caracteres'),
+    password: strongPassword,
     confirmPassword: z
         .string()
         .min(1, 'Confirmação de senha é obrigatória'),

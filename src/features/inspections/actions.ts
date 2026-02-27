@@ -144,28 +144,32 @@ export async function createInspection(input: {
             .where(eq(criteria.serviceId, input.serviceId))
             .orderBy(criteria.sortOrder)
 
-        // Criar inspeção (nasce como DRAFT, sem startedAt)
-        const [inspection] = await db
-            .insert(inspections)
-            .values({
-                projectId: input.projectId,
-                serviceId: input.serviceId,
-                locationId: input.locationId,
-                inspectorId: input.inspectorId,
-                referenceMonth: input.referenceMonth,
-                status: 'DRAFT',
-            })
-            .returning()
+        // Criar inspeção e items em transaction para atomicidade
+        const inspection = await db.transaction(async (tx) => {
+            const [insp] = await tx
+                .insert(inspections)
+                .values({
+                    projectId: input.projectId,
+                    serviceId: input.serviceId,
+                    locationId: input.locationId,
+                    inspectorId: input.inspectorId,
+                    referenceMonth: input.referenceMonth,
+                    status: 'DRAFT',
+                })
+                .returning()
 
-        // Gerar items a partir dos critérios
-        if (serviceCriteria.length > 0) {
-            await db.insert(inspectionItems).values(
-                serviceCriteria.map((c) => ({
-                    inspectionId: inspection.id,
-                    criterionId: c.id,
-                }))
-            )
-        }
+            // Gerar items a partir dos critérios
+            if (serviceCriteria.length > 0) {
+                await tx.insert(inspectionItems).values(
+                    serviceCriteria.map((c) => ({
+                        inspectionId: insp.id,
+                        criterionId: c.id,
+                    }))
+                )
+            }
+
+            return insp
+        })
 
         logger.info(
             { userId: user.id, inspectionId: inspection.id, inspectorId: input.inspectorId, action: 'inspection.created' },
@@ -437,18 +441,28 @@ export async function getInspection(inspectionId: string) {
 
 /**
  * Submete avaliação de um item da inspeção (C, NC, NA).
+ * Verifica que o item pertence a uma inspeção do tenant atual.
  */
 export async function evaluateItem(itemId: string, evaluation: 'C' | 'NC' | 'NA', notes?: string) {
     const { user, tenant } = await getAuthContext()
 
     try {
+        // Verificar que o item pertence ao tenant via inspections → projects
+        const [item] = await db
+            .select({ id: inspectionItems.id })
+            .from(inspectionItems)
+            .innerJoin(inspections, eq(inspections.id, inspectionItems.inspectionId))
+            .innerJoin(projects, eq(projects.id, inspections.projectId))
+            .where(and(eq(inspectionItems.id, itemId), eq(projects.tenantId, tenant.id)))
+            .limit(1)
+
+        if (!item) return { error: 'Item não encontrado' }
+
         const [updated] = await db
             .update(inspectionItems)
             .set({ evaluation, notes: notes || null })
             .where(eq(inspectionItems.id, itemId))
             .returning()
-
-        if (!updated) return { error: 'Item não encontrado' }
 
         return { data: updated }
     } catch (err) {
@@ -459,18 +473,29 @@ export async function evaluateItem(itemId: string, evaluation: 'C' | 'NC' | 'NA'
 
 /**
  * Salva a URL da foto de um item da inspeção.
+ * Verifica que o item pertence a uma inspeção do tenant atual.
  */
 export async function updateItemPhoto(itemId: string, photoUrl: string | null) {
-    await getAuthContext()
+    const { tenant } = await getAuthContext()
 
     try {
+        // Verificar que o item pertence ao tenant via inspections → projects
+        const [item] = await db
+            .select({ id: inspectionItems.id })
+            .from(inspectionItems)
+            .innerJoin(inspections, eq(inspections.id, inspectionItems.inspectionId))
+            .innerJoin(projects, eq(projects.id, inspections.projectId))
+            .where(and(eq(inspectionItems.id, itemId), eq(projects.tenantId, tenant.id)))
+            .limit(1)
+
+        if (!item) return { error: 'Item não encontrado' }
+
         const [updated] = await db
             .update(inspectionItems)
             .set({ photoUrl })
             .where(eq(inspectionItems.id, itemId))
             .returning()
 
-        if (!updated) return { error: 'Item não encontrado' }
         return { data: updated }
     } catch (err) {
         logger.error({ err, itemId }, 'Erro ao salvar foto')
@@ -487,6 +512,16 @@ export async function completeInspection(inspectionId: string) {
     const { user, tenant } = await getAuthContext()
 
     try {
+        // Verificar que a inspeção pertence ao tenant
+        const [inspCheck] = await db
+            .select({ id: inspections.id })
+            .from(inspections)
+            .innerJoin(projects, eq(projects.id, inspections.projectId))
+            .where(and(eq(inspections.id, inspectionId), eq(projects.tenantId, tenant.id)))
+            .limit(1)
+
+        if (!inspCheck) return { error: 'Inspeção não encontrada' }
+
         // Buscar todos os items desta inspeção com dados do critério
         const itemsWithCriteria = await db
             .select({
@@ -510,35 +545,40 @@ export async function completeInspection(inspectionId: string) {
         const ncItems = itemsWithCriteria.filter((i) => i.item.evaluation === 'NC')
         const result = ncItems.length > 0 ? 'APPROVED_WITH_RESTRICTIONS' : 'APPROVED'
 
-        const [updated] = await db
-            .update(inspections)
-            .set({
-                status: 'COMPLETED',
-                result,
-                completedAt: new Date(),
-                updatedAt: new Date(),
-            })
-            .where(eq(inspections.id, inspectionId))
-            .returning()
+        // Usar transaction para garantir atomicidade
+        const updated = await db.transaction(async (tx) => {
+            const [upd] = await tx
+                .update(inspections)
+                .set({
+                    status: 'COMPLETED',
+                    result,
+                    completedAt: new Date(),
+                    updatedAt: new Date(),
+                })
+                .where(eq(inspections.id, inspectionId))
+                .returning()
+
+            // Criar pendências automaticamente para cada item NC
+            if (ncItems.length > 0) {
+                await tx.insert(issues).values(
+                    ncItems.map((nc) => ({
+                        inspectionId,
+                        description: nc.item.notes
+                            ? `${nc.criterion.description} — ${nc.item.notes}`
+                            : nc.criterion.description,
+                    }))
+                )
+
+                logger.info(
+                    { inspectionId, issuesCreated: ncItems.length, action: 'issues.auto_created' },
+                    'Pendências criadas automaticamente a partir de itens NC'
+                )
+            }
+
+            return upd
+        })
 
         if (!updated) return { error: 'Inspeção não encontrada' }
-
-        // Criar pendências automaticamente para cada item NC
-        if (ncItems.length > 0) {
-            await db.insert(issues).values(
-                ncItems.map((nc) => ({
-                    inspectionId,
-                    description: nc.item.notes
-                        ? `${nc.criterion.description} — ${nc.item.notes}`
-                        : nc.criterion.description,
-                }))
-            )
-
-            logger.info(
-                { inspectionId, issuesCreated: ncItems.length, action: 'issues.auto_created' },
-                'Pendências criadas automaticamente a partir de itens NC'
-            )
-        }
 
         logger.info(
             { userId: user.id, inspectionId, result, action: 'inspection.completed' },
@@ -593,34 +633,38 @@ export async function reviseInspection(inspectionId: string) {
         const ncItems = allItems.filter((i) => i.evaluation === 'NC')
         const newResult = ncItems.length > 0 ? 'APPROVED_WITH_RESTRICTIONS' : 'APPROVED'
 
-        // Atualizar resultado da inspeção
-        const [updated] = await db
-            .update(inspections)
-            .set({
-                result: newResult,
-                updatedAt: new Date(),
-                ...(newResult === 'APPROVED' ? { approvedAt: new Date() } : {}),
-            })
-            .where(eq(inspections.id, inspectionId))
-            .returning()
-
-        // Se aprovada, resolver todas as pendências abertas desta inspeção
-        if (newResult === 'APPROVED') {
-            await db
-                .update(issues)
+        // Transaction para atomicidade: update inspeção + resolve issues
+        const updated = await db.transaction(async (tx) => {
+            const [upd] = await tx
+                .update(inspections)
                 .set({
-                    status: 'RESOLVED',
-                    resolvedAt: new Date(),
+                    result: newResult,
                     updatedAt: new Date(),
-                    notes: 'Resolvida automaticamente após revisão da inspeção',
+                    ...(newResult === 'APPROVED' ? { approvedAt: new Date() } : {}),
                 })
-                .where(
-                    and(
-                        eq(issues.inspectionId, inspectionId),
-                        sql`${issues.status} IN ('OPEN', 'IN_PROGRESS')`
+                .where(eq(inspections.id, inspectionId))
+                .returning()
+
+            // Se aprovada, resolver todas as pendências abertas desta inspeção
+            if (newResult === 'APPROVED') {
+                await tx
+                    .update(issues)
+                    .set({
+                        status: 'RESOLVED',
+                        resolvedAt: new Date(),
+                        updatedAt: new Date(),
+                        notes: 'Resolvida automaticamente após revisão da inspeção',
+                    })
+                    .where(
+                        and(
+                            eq(issues.inspectionId, inspectionId),
+                            sql`${issues.status} IN ('OPEN', 'IN_PROGRESS')`
+                        )
                     )
-                )
-        }
+            }
+
+            return upd
+        })
 
         logger.info(
             { userId: user.id, inspectionId, result: newResult, action: 'inspection.revised' },

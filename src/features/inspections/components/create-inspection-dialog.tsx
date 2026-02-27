@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { createInspection, listTeamMembersForAssignment } from '../actions'
-import { listProjects } from '@/features/projects/actions'
+import { listProjectOptions } from '@/features/projects/actions'
 import { listLocations } from '@/features/locations/actions'
 import { listServices } from '@/features/services/actions'
 import { Button } from '@/components/ui/button'
@@ -88,10 +88,10 @@ export function CreateInspectionDialog({
     useEffect(() => {
         if (!open) return
         setLoading(true)
-        Promise.all([listProjects(), listServices(), listTeamMembersForAssignment()])
+        Promise.all([listProjectOptions(), listServices(), listTeamMembersForAssignment()])
             .then(([projectsResult, servicesResult, teamResult]) => {
                 if (projectsResult.data) {
-                    setProjectsList(projectsResult.data.map(item => item.project).filter((p) => p.active) as Project[])
+                    setProjectsList(projectsResult.data as Project[])
                 }
                 if (servicesResult.data) {
                     setServicesList(

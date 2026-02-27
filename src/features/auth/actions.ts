@@ -8,7 +8,7 @@ import { db } from '@/lib/db'
 import { users, tenants, systemUsers, plans, subscriptions } from '@/lib/db/schema'
 import { loginSchema, tenantRegisterSchema, forgotPasswordSchema, resetPasswordSchema } from './schemas'
 import { logger } from '@/lib/logger'
-import { loginLimiter } from '@/lib/rate-limit'
+import { loginLimiter, registerLimiter, forgotPasswordLimiter } from '@/lib/rate-limit'
 import type { AuthContext, SystemAuthContext } from './types'
 
 /**
@@ -205,6 +205,12 @@ export async function systemLogin(input: unknown) {
  */
 export async function register(input: unknown) {
     try {
+        // Rate limiting: 3 registros por hora por IP
+        const limit = await registerLimiter.check()
+        if (!limit.success) {
+            return { error: 'Muitas tentativas de cadastro. Tente novamente mais tarde.' }
+        }
+
         const parsed = tenantRegisterSchema.safeParse(input)
         if (!parsed.success) {
             return { error: parsed.error.flatten() }
@@ -304,6 +310,12 @@ export async function register(input: unknown) {
  */
 export async function forgotPassword(input: unknown) {
     try {
+        // Rate limiting: 3 tentativas por minuto por IP
+        const limit = await forgotPasswordLimiter.check()
+        if (!limit.success) {
+            return { error: 'Muitas tentativas. Tente novamente em breve.' }
+        }
+
         const parsed = forgotPasswordSchema.safeParse(input)
         if (!parsed.success) {
             return { error: parsed.error.flatten() }

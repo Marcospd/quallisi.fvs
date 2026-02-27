@@ -4,16 +4,24 @@ import { eq, asc, desc } from 'drizzle-orm'
 import type { AnyColumn } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { tenants } from '@/lib/db/schema'
+import { getAuthContext, getSystemAuthContext } from '@/features/auth/actions'
 import { logger } from '@/lib/logger'
 
 /**
  * Busca tenant pelo slug.
- * Retorna null se não encontrar ou se o tenant não estiver ativo.
+ * Requer autenticação. Retorna apenas slug e nome para segurança.
  */
 export async function getTenantBySlug(slug: string) {
     try {
+        await getAuthContext()
+
         const [tenant] = await db
-            .select()
+            .select({
+                id: tenants.id,
+                name: tenants.name,
+                slug: tenants.slug,
+                status: tenants.status,
+            })
             .from(tenants)
             .where(eq(tenants.slug, slug))
             .limit(1)
@@ -30,12 +38,14 @@ export async function getTenantBySlug(slug: string) {
 
 /**
  * Lista todos os tenants ativos.
- * Uso exclusivo do Painel SISTEMA — sem filtro de tenantId.
+ * Uso exclusivo do Painel SISTEMA — requer autenticação de system user.
  */
 export async function listTenants(options?: {
     sort?: string
     order?: 'asc' | 'desc'
 }) {
+    await getSystemAuthContext()
+
     const sortMap: Record<string, AnyColumn> = {
         name: tenants.name,
         slug: tenants.slug,

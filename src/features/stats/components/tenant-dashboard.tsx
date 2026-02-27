@@ -1,35 +1,34 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import {
     TrendingUp,
     ClipboardCheck,
     CheckCircle2,
-    XCircle,
     Clock,
     AlertTriangle,
-    ThumbsUp,
     Building2,
     CalendarDays,
     Plus,
-    ArrowRight,
 } from 'lucide-react'
-import {
-    PieChart,
-    Pie,
-    Cell,
-    ResponsiveContainer,
-    BarChart,
-    Bar,
-    XAxis,
-    YAxis,
-    Tooltip,
-    CartesianGrid,
-} from 'recharts'
 import { MetricCard } from '@/components/metric-card'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { EmptyState } from '@/components/empty-state'
+import { Skeleton } from '@/components/ui/skeleton'
+
+const DashboardCharts = dynamic(
+    () => import('./dashboard-charts').then((mod) => mod.DashboardCharts),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="grid gap-6 md:grid-cols-2">
+                <Skeleton className="h-[300px]" />
+                <Skeleton className="h-[300px]" />
+            </div>
+        ),
+    }
+)
 
 interface StatsData {
     totalInspections: number
@@ -120,80 +119,9 @@ export function TenantDashboard({ stats, tenantSlug }: TenantDashboardProps) {
                 />
             </div>
 
-            {/* Gráficos — só mostrar se tem dados */}
+            {/* Gráficos — lazy-loaded, só mostrar se tem dados */}
             {hasData ? (
-                <div className="grid gap-6 md:grid-cols-2">
-                    {/* Gráfico de Pizza — Distribuição de Inspeções */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Distribuição de Inspeções</CardTitle>
-                            <CardDescription>Resultado das FVS realizadas</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {pieData.length > 0 ? (
-                                <div className="flex items-center gap-6">
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <PieChart>
-                                            <Pie
-                                                data={pieData}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={50}
-                                                outerRadius={80}
-                                                paddingAngle={4}
-                                                dataKey="value"
-                                            >
-                                                {pieData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip
-                                                formatter={(value) => [`${value} inspeções`, '']}
-                                            />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                    <div className="space-y-3 shrink-0">
-                                        {pieData.map((entry) => (
-                                            <div key={entry.name} className="flex items-center gap-2">
-                                                <div
-                                                    className="h-3 w-3 rounded-full shrink-0"
-                                                    style={{ backgroundColor: entry.color }}
-                                                />
-                                                <span className="text-sm text-muted-foreground">
-                                                    {entry.name}: <span className="font-medium text-foreground">{entry.value}</span>
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground text-center py-8">
-                                    Sem dados suficientes
-                                </p>
-                            )}
-                        </CardContent>
-                    </Card>
-
-                    {/* Gráfico de Barras — Visão Geral */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Visão Geral</CardTitle>
-                            <CardDescription>Resumo das atividades do tenant</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ResponsiveContainer width="100%" height={200}>
-                                <BarChart data={barData}>
-                                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                                    <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 12 }} />
-                                    <YAxis className="text-xs" tick={{ fontSize: 12 }} />
-                                    <Tooltip />
-                                    <Bar dataKey="total" fill="#6366f1" radius={[4, 4, 0, 0]} name="Total" />
-                                    <Bar dataKey="aprovadas" fill="#10b981" radius={[4, 4, 0, 0]} name="Concluídas" />
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </CardContent>
-                    </Card>
-                </div>
+                <DashboardCharts pieData={pieData} barData={barData} />
             ) : null}
 
             {/* Cards secundários */}

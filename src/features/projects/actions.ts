@@ -1,12 +1,37 @@
 'use server'
 
-import { eq, and, ilike, count, sql } from 'drizzle-orm'
+import { eq, and, ilike, count, sql, asc } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { db } from '@/lib/db'
 import { projects, inspections, inspectionItems } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
 import { createProjectSchema, updateProjectSchema } from './schemas'
 import { logger } from '@/lib/logger'
+
+/**
+ * Lista obras ativas do tenant para uso em dropdowns/selects.
+ * Query leve: sem JOINs, apenas id, name, active.
+ */
+export async function listProjectOptions() {
+    const { tenant } = await getAuthContext()
+
+    try {
+        const result = await db
+            .select({
+                id: projects.id,
+                name: projects.name,
+                active: projects.active,
+            })
+            .from(projects)
+            .where(and(eq(projects.tenantId, tenant.id), eq(projects.active, true)))
+            .orderBy(asc(projects.name))
+
+        return { data: result }
+    } catch (err) {
+        logger.error({ err, tenantId: tenant.id }, 'Erro ao listar opções de obras')
+        return { error: 'Erro ao carregar obras' }
+    }
+}
 
 /**
  * Lista obras do tenant atual.
@@ -29,28 +54,28 @@ export async function listProjects(options?: {
             filters.push(ilike(projects.name, search))
         }
 
-        const queryCount = await db
-            .select({ count: count() })
-            .from(projects)
-            .where(and(...filters))
-            .execute()
+        const [queryCount, rows] = await Promise.all([
+            db
+                .select({ count: count() })
+                .from(projects)
+                .where(and(...filters)),
+            db
+                .select({
+                    project: projects,
+                    total: sql<number>`count(case when ${inspectionItems.evaluation} in ('C', 'NC') then 1 end)`.mapWith(Number),
+                    approved: sql<number>`count(case when ${inspectionItems.evaluation} = 'C' then 1 end)`.mapWith(Number),
+                })
+                .from(projects)
+                .leftJoin(inspections, eq(inspections.projectId, projects.id))
+                .leftJoin(inspectionItems, eq(inspectionItems.inspectionId, inspections.id))
+                .where(and(...filters))
+                .groupBy(projects.id)
+                .limit(limit)
+                .offset(offset)
+                .orderBy(projects.name),
+        ])
 
         const totalItems = queryCount[0]?.count || 0
-
-        const rows = await db
-            .select({
-                project: projects,
-                total: sql<number>`count(case when ${inspectionItems.evaluation} in ('C', 'NC') then 1 end)`.mapWith(Number),
-                approved: sql<number>`count(case when ${inspectionItems.evaluation} = 'C' then 1 end)`.mapWith(Number),
-            })
-            .from(projects)
-            .leftJoin(inspections, eq(inspections.projectId, projects.id))
-            .leftJoin(inspectionItems, eq(inspectionItems.inspectionId, inspections.id))
-            .where(and(...filters))
-            .groupBy(projects.id)
-            .limit(limit)
-            .offset(offset)
-            .orderBy(projects.name)
 
         const data = rows.map((r) => ({
             project: r.project,

@@ -89,3 +89,19 @@ export const apiLimiter = createRateLimiter({
     maxRequests: 30,
     windowMs: 60_000, // 1 minuto
 })
+
+/**
+ * Rate limiter para registro de empresas: 3 por hora por IP.
+ */
+export const registerLimiter = createRateLimiter({
+    maxRequests: 3,
+    windowMs: 3_600_000, // 1 hora
+})
+
+/**
+ * Rate limiter para recuperação de senha: 3 por minuto por IP.
+ */
+export const forgotPasswordLimiter = createRateLimiter({
+    maxRequests: 3,
+    windowMs: 60_000, // 1 minuto
+})

@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Loader2 } from 'lucide-react'
 import { createLocationSchema, type CreateLocationInput } from '../schemas'
 import { createLocation } from '../actions'
-import { listProjects } from '@/features/projects/actions'
+import { listProjectOptions } from '@/features/projects/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -53,13 +53,9 @@ export function CreateLocationDialog({ children, defaultProjectId }: { children:
     useEffect(() => {
         if (open) {
             form.reset({ projectId: defaultProjectId || '', name: '', description: '' })
-            listProjects().then((result) => {
+            listProjectOptions().then((result) => {
                 if (result.data) {
-                    setProjectsList(
-                        result.data
-                            .map((item: any) => item.project)
-                            .filter((p: any) => p?.active)
-                    )
+                    setProjectsList(result.data)
                 }
             })
         }

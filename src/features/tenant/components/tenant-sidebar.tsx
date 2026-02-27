@@ -11,6 +11,10 @@ import {
     CalendarDays,
     AlertTriangle,
     Users,
+    Truck,
+    BookOpen,
+    FileText,
+    Calculator,
 } from 'lucide-react'
 import { useTenant } from '@/features/tenant/components/tenant-provider'
 import {
@@ -40,9 +44,13 @@ export function TenantSidebar() {
         { title: 'Dashboard', href: base, icon: LayoutDashboard },
         { title: 'Inspeções', href: `${base}/inspections`, icon: ClipboardCheck },
         { title: 'Pendências', href: `${base}/issues`, icon: AlertTriangle },
-        // Planejamento só visível para admin/supervisor
+        { title: 'Diário de Obra', href: `${base}/site-diary`, icon: BookOpen },
+        // Planejamento e Medições só visíveis para admin/supervisor
         ...(user.role !== 'inspetor'
-            ? [{ title: 'Planejamento', href: `${base}/planning`, icon: CalendarDays }]
+            ? [
+                { title: 'Planejamento', href: `${base}/planning`, icon: CalendarDays },
+                { title: 'Medições', href: `${base}/measurements`, icon: Calculator },
+              ]
             : []),
     ]
 
@@ -51,6 +59,8 @@ export function TenantSidebar() {
         { title: 'Locais', href: `${base}/locations`, icon: MapPin },
         { title: 'Serviços', href: `${base}/services`, icon: Wrench },
         { title: 'Gestão de Acessos', href: `${base}/team`, icon: Users },
+        { title: 'Empreiteiras', href: `${base}/contractors`, icon: Truck },
+        { title: 'Contratos', href: `${base}/contracts`, icon: FileText },
     ]
 
     const isActive = (href: string) => {

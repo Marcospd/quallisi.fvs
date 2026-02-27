@@ -49,24 +49,31 @@ export async function listTeamMembers(options?: {
             )
         }
 
-        const queryCount = await db
-            .select({ count: count() })
-            .from(users)
-            .where(and(...filters))
-            .execute()
-
-        const totalItems = queryCount[0]?.count || 0
-
         const sortColumn = sortMap[options?.sort ?? '']
         const orderFn = options?.order === 'desc' ? desc : asc
 
-        const result = await db
-            .select()
-            .from(users)
-            .where(and(...filters))
-            .limit(limit)
-            .offset(offset)
-            .orderBy(sortColumn ? orderFn(sortColumn) : asc(users.name))
+        const [queryCount, result] = await Promise.all([
+            db
+                .select({ count: count() })
+                .from(users)
+                .where(and(...filters)),
+            db
+                .select({
+                    id: users.id,
+                    name: users.name,
+                    email: users.email,
+                    role: users.role,
+                    active: users.active,
+                    createdAt: users.createdAt,
+                })
+                .from(users)
+                .where(and(...filters))
+                .limit(limit)
+                .offset(offset)
+                .orderBy(sortColumn ? orderFn(sortColumn) : asc(users.name)),
+        ])
+
+        const totalItems = queryCount[0]?.count || 0
 
         return {
             data: result,
@@ -133,18 +140,22 @@ export async function inviteTeamMember(input: unknown) {
         if (authError || !authData.user) {
             // Se o auth user já existe (e.g. em outro tenant), buscar o id
             if (authError?.message?.includes('already been registered')) {
-                const { data: listData } = await admin.auth.admin.listUsers()
-                const existingAuth = listData?.users?.find((u) => u.email === email)
+                // Buscar authId na nossa tabela users (O(1) com índice em email)
+                const [existingUser] = await db
+                    .select({ authId: users.authId })
+                    .from(users)
+                    .where(eq(users.email, email))
+                    .limit(1)
 
-                if (!existingAuth) {
-                    return { error: 'Erro ao localizar usuário existente' }
+                if (!existingUser) {
+                    return { error: 'Erro ao localizar usuário existente. Contate o suporte.' }
                 }
 
                 // Criar registro na tabela users vinculado ao auth existente
                 const [newUser] = await db
                     .insert(users)
                     .values({
-                        authId: existingAuth.id,
+                        authId: existingUser.authId,
                         tenantId: tenant.id,
                         name,
                         email,
@@ -274,7 +285,7 @@ export async function toggleMemberActive(userId: string) {
         const [updated] = await db
             .update(users)
             .set({ active: !member.active, updatedAt: new Date() })
-            .where(eq(users.id, userId))
+            .where(and(eq(users.id, userId), eq(users.tenantId, tenant.id)))
             .returning()
 
         logger.info(
