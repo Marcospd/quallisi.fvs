@@ -49,6 +49,7 @@ export async function listServices(options?: {
                     id: services.id,
                     tenantId: services.tenantId,
                     name: services.name,
+                    unit: services.unit,
                     description: services.description,
                     active: services.active,
                     createdAt: services.createdAt,
@@ -73,6 +74,34 @@ export async function listServices(options?: {
     } catch (err) {
         logger.error({ err, tenantId: tenant.id }, 'Erro ao listar serviços')
         return { error: 'Erro ao carregar serviços' }
+    }
+}
+
+/**
+ * Busca um único serviço com seus critérios.
+ */
+export async function getService(serviceId: string) {
+    const { tenant } = await getAuthContext()
+
+    try {
+        const [service] = await db
+            .select()
+            .from(services)
+            .where(and(eq(services.id, serviceId), eq(services.tenantId, tenant.id)))
+            .limit(1)
+
+        if (!service) return { error: 'Serviço não encontrado' }
+
+        const criteriaList = await db
+            .select()
+            .from(criteria)
+            .where(eq(criteria.serviceId, serviceId))
+            .orderBy(asc(criteria.sortOrder))
+
+        return { data: { ...service, criteria: criteriaList } }
+    } catch (err) {
+        logger.error({ err, serviceId }, 'Erro ao buscar serviço')
+        return { error: 'Erro ao carregar serviço' }
     }
 }
 
@@ -121,6 +150,7 @@ export async function createService(input: unknown) {
             .values({
                 tenantId: tenant.id,
                 name: parsed.data.name,
+                unit: parsed.data.unit || null,
                 description: parsed.data.description || null,
             })
             .returning()
@@ -147,6 +177,7 @@ export async function updateService(serviceId: string, input: unknown) {
 
     const updateData: Record<string, any> = { updatedAt: new Date() }
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name
+    if (parsed.data.unit !== undefined) updateData.unit = parsed.data.unit || null
     if (parsed.data.description !== undefined) updateData.description = parsed.data.description
 
     try {

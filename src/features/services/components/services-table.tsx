@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { toggleServiceActive } from '../actions'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,14 +15,14 @@ import {
     TableRow,
 } from '@/components/ui/table'
 import { DataTableSortHeader } from '@/components/data-table-sort-header'
-import { EditServiceDialog } from './edit-service-dialog'
-import { Power, ChevronRight, Edit2 } from 'lucide-react'
+import { Power, Edit2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface ServiceRow {
     id: string
     tenantId: string
     name: string
+    unit: string | null
     description: string | null
     active: boolean
     createdAt: Date | null
@@ -30,16 +32,15 @@ interface ServiceRow {
 
 interface ServicesTableProps {
     services: ServiceRow[]
-    onSelectService: (serviceId: string) => void
-    selectedServiceId?: string | null
+    slug: string
 }
 
 /**
- * Tabela de serviços com toggle ativo/inativo e seleção para gerenciar critérios.
+ * Tabela de serviços. Edição navega para tela cheia /services/[id]/edit.
  */
-export function ServicesTable({ services: data, onSelectService, selectedServiceId }: ServicesTableProps) {
+export function ServicesTable({ services: data, slug }: ServicesTableProps) {
+    const router = useRouter()
     const [pendingId, setPendingId] = useState<string | null>(null)
-    const [editingService, setEditingService] = useState<ServiceRow | null>(null)
 
     async function handleToggle(e: React.MouseEvent, serviceId: string) {
         e.stopPropagation()
@@ -59,79 +60,71 @@ export function ServicesTable({ services: data, onSelectService, selectedService
     }
 
     return (
-        <>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <DataTableSortHeader column="name">Serviço</DataTableSortHeader>
-                        <DataTableSortHeader column="description">Descrição</DataTableSortHeader>
-                        <TableHead className="text-center">Critérios</TableHead>
-                        <DataTableSortHeader column="status">Status</DataTableSortHeader>
-                        <TableHead className="w-[100px]">Ações</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {data.map((service) => (
-                        <TableRow
-                            key={service.id}
-                            className={`cursor-pointer transition-colors ${selectedServiceId === service.id ? 'bg-muted/50' : 'hover:bg-muted/30'}`}
-                            onClick={() => onSelectService(service.id)}
-                            onDoubleClick={() => setEditingService(service)}
-                        >
-                            <TableCell className="font-medium">{service.name}</TableCell>
-                            <TableCell className="text-muted-foreground max-w-[300px] truncate">
-                                {service.description || '—'}
-                            </TableCell>
-                            <TableCell className="text-center">
-                                <Badge variant="outline">{service.criteriaCount}</Badge>
-                            </TableCell>
-                            <TableCell>
-                                <Badge variant={service.active ? 'default' : 'secondary'}>
-                                    {service.active ? 'Ativo' : 'Inativo'}
+        <Table>
+            <TableHeader>
+                <TableRow>
+                    <DataTableSortHeader column="name">Serviço</DataTableSortHeader>
+                    <TableHead>Unidade</TableHead>
+                    <DataTableSortHeader column="description">Descrição</DataTableSortHeader>
+                    <TableHead className="text-center">Critérios</TableHead>
+                    <DataTableSortHeader column="status">Status</DataTableSortHeader>
+                    <TableHead className="w-[100px]">Ações</TableHead>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {data.map((service) => (
+                    <TableRow
+                        key={service.id}
+                        className="cursor-pointer hover:bg-muted/30"
+                        onDoubleClick={() => router.push(`/${slug}/services/${service.id}/edit`)}
+                    >
+                        <TableCell className="font-medium">{service.name}</TableCell>
+                        <TableCell>
+                            {service.unit ? (
+                                <Badge variant="outline" className="font-mono text-xs">
+                                    {service.unit}
                                 </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setEditingService(service)
-                                        }}
-                                        title="Editar serviço"
-                                    >
+                            ) : (
+                                <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-[280px] truncate">
+                            {service.description || '—'}
+                        </TableCell>
+                        <TableCell className="text-center">
+                            <Badge variant="outline">{service.criteriaCount}</Badge>
+                        </TableCell>
+                        <TableCell>
+                            <Badge variant={service.active ? 'default' : 'secondary'}>
+                                {service.active ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                        </TableCell>
+                        <TableCell>
+                            <div className="flex items-center gap-1">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    asChild
+                                    title="Editar serviço"
+                                >
+                                    <Link href={`/${slug}/services/${service.id}/edit`}>
                                         <Edit2 className="h-4 w-4 text-muted-foreground" />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={(e) => handleToggle(e, service.id)}
-                                        disabled={pendingId === service.id}
-                                        title={service.active ? 'Desativar' : 'Ativar'}
-                                    >
-                                        <Power className={`h-4 w-4 ${service.active ? 'text-emerald-500' : 'text-muted-foreground'}`} />
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => onSelectService(service.id)}
-                                        title="Ver critérios"
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-
-            <EditServiceDialog
-                service={editingService}
-                open={!!editingService}
-                onOpenChange={(open) => !open && setEditingService(null)}
-            />
-        </>
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={(e) => handleToggle(e, service.id)}
+                                    disabled={pendingId === service.id}
+                                    title={service.active ? 'Desativar' : 'Ativar'}
+                                >
+                                    <Power className={`h-4 w-4 ${service.active ? 'text-emerald-500' : 'text-muted-foreground'}`} />
+                                </Button>
+                            </div>
+                        </TableCell>
+                    </TableRow>
+                ))}
+            </TableBody>
+        </Table>
     )
 }

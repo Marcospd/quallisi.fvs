@@ -10,6 +10,7 @@ export const services = pgTable('services', {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').references(() => tenants.id).notNull(),
     name: varchar('name', { length: 255 }).notNull(),
+    unit: varchar('unit', { length: 50 }),
     description: text('description'),
     active: boolean('active').notNull().default(true),
     createdAt: timestamp('created_at').defaultNow(),
