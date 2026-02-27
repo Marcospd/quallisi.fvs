@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useForm, useFieldArray, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -19,15 +19,34 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+} from '@/components/ui/command'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
 
 import { createContractSchema, unitOptions, type CreateContractInput } from '../schemas'
 import { createContract, updateContract } from '../actions'
 import { listProjectOptions } from '@/features/projects/actions'
 import { listActiveContractors } from '@/features/contractors/actions'
+import { listServiceOptions } from '@/features/services/actions'
 
 interface OptionItem {
     id: string
     name: string
+}
+
+interface ServiceOption {
+    id: string
+    name: string
+    unit: string | null
 }
 
 interface ContractFormProps {
@@ -49,6 +68,24 @@ const unitLabels: Record<string, string> = {
     L: 'L',
 }
 
+// Mapeia unidade livre (do catálogo) para enum do contrato
+function mapUnitToContractUnit(unit: string | null): string {
+    if (!unit) return 'M2'
+    const normalized = unit.toLowerCase().replace('²', '2').replace('³', '3')
+    const map: Record<string, string> = {
+        'm2': 'M2', 'm²': 'M2',
+        'm3': 'M3', 'm³': 'M3',
+        'ml': 'ML', 'm': 'M',
+        'kg': 'KG',
+        'vb': 'VB',
+        'dia': 'DIA',
+        'un': 'UNID', 'unid': 'UNID',
+        'ton': 'TON', 't': 'TON',
+        'l': 'L',
+    }
+    return map[normalized] ?? 'M2'
+}
+
 function formatCurrency(value: number) {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
@@ -60,6 +97,8 @@ export function ContractForm({ mode, contractId, defaultValues }: ContractFormPr
     const [isPending, startTransition] = useTransition()
     const [projectOptions, setProjectOptions] = useState<OptionItem[]>([])
     const [contractorOptions, setContractorOptions] = useState<OptionItem[]>([])
+    const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([])
+    const [openServicePopover, setOpenServicePopover] = useState<number | null>(null)
 
     const form = useForm<CreateContractInput>({
         resolver: zodResolver(createContractSchema),
@@ -89,15 +128,26 @@ export function ContractForm({ mode, contractId, defaultValues }: ContractFormPr
         Promise.all([
             listProjectOptions(),
             listActiveContractors(),
-        ]).then(([projRes, contRes]) => {
+            listServiceOptions(),
+        ]).then(([projRes, contRes, svcRes]) => {
             if (projRes.data) {
                 setProjectOptions(projRes.data.map((p) => ({ id: p.id, name: p.name })))
             }
             if (contRes.data) {
                 setContractorOptions(contRes.data.map((c: any) => ({ id: c.id, name: c.name })))
             }
+            if (svcRes.data) {
+                setServiceOptions(svcRes.data.map((s) => ({ id: s.id, name: s.name, unit: s.unit })))
+            }
         })
     }, [])
+
+    function handleSelectService(index: number, service: ServiceOption) {
+        form.setValue(`items.${index}.serviceName`, service.name, { shouldValidate: true })
+        const mappedUnit = mapUnitToContractUnit(service.unit)
+        form.setValue(`items.${index}.unit`, mappedUnit as any, { shouldValidate: true })
+        setOpenServicePopover(null)
+    }
 
     function onSubmit(data: CreateContractInput) {
         startTransition(async () => {
@@ -206,7 +256,14 @@ export function ContractForm({ mode, contractId, defaultValues }: ContractFormPr
             {/* Itens do contrato */}
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Itens do Contrato</CardTitle>
+                    <div>
+                        <CardTitle>Itens do Contrato</CardTitle>
+                        {serviceOptions.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Use <BookOpen className="inline h-3 w-3" /> para buscar no catálogo de serviços cadastrados
+                            </p>
+                        )}
+                    </div>
                     <Button
                         type="button"
                         variant="outline"
@@ -235,7 +292,7 @@ export function ContractForm({ mode, contractId, defaultValues }: ContractFormPr
                         </p>
                     ) : (
                         <div className="space-y-3">
-                            <div className="grid grid-cols-[60px_1fr_90px_120px_120px_80px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
+                            <div className="hidden md:grid md:grid-cols-[60px_1fr_90px_120px_120px_80px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
                                 <span>Item</span>
                                 <span>Serviço</span>
                                 <span>Unidade</span>
@@ -250,20 +307,60 @@ export function ContractForm({ mode, contractId, defaultValues }: ContractFormPr
                                 const lineTotal = unitPrice * qty
 
                                 return (
-                                    <div key={field.id} className="grid grid-cols-[60px_1fr_90px_120px_120px_80px_40px] gap-2 items-start">
+                                    <div key={field.id} className="grid grid-cols-1 md:grid-cols-[60px_1fr_90px_120px_120px_80px_40px] gap-2 items-start border rounded-lg p-3 md:border-none md:p-0">
                                         <Input
                                             {...form.register(`items.${index}.itemNumber`)}
                                             placeholder="#"
                                         />
-                                        <div>
-                                            <Input
-                                                {...form.register(`items.${index}.serviceName`)}
-                                                placeholder="Nome do serviço"
-                                            />
-                                            {form.formState.errors.items?.[index]?.serviceName && (
-                                                <p className="text-xs text-destructive mt-1">
-                                                    {form.formState.errors.items[index]?.serviceName?.message}
-                                                </p>
+                                        {/* Campo de serviço com busca do catálogo */}
+                                        <div className="flex gap-1">
+                                            <div className="flex-1">
+                                                <Input
+                                                    {...form.register(`items.${index}.serviceName`)}
+                                                    placeholder="Nome do serviço"
+                                                />
+                                                {form.formState.errors.items?.[index]?.serviceName && (
+                                                    <p className="text-xs text-destructive mt-1">
+                                                        {form.formState.errors.items[index]?.serviceName?.message}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            {serviceOptions.length > 0 && (
+                                                <Popover
+                                                    open={openServicePopover === index}
+                                                    onOpenChange={(open) => setOpenServicePopover(open ? index : null)}
+                                                >
+                                                    <PopoverTrigger asChild>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon"
+                                                            title="Buscar no catálogo de serviços"
+                                                        >
+                                                            <BookOpen className="h-4 w-4" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-72 p-0" align="start">
+                                                        <Command>
+                                                            <CommandInput placeholder="Buscar serviço..." />
+                                                            <CommandEmpty>Nenhum serviço encontrado.</CommandEmpty>
+                                                            <CommandGroup className="max-h-48 overflow-y-auto">
+                                                                {serviceOptions.map((svc) => (
+                                                                    <CommandItem
+                                                                        key={svc.id}
+                                                                        value={svc.name}
+                                                                        onSelect={() => handleSelectService(index, svc)}
+                                                                    >
+                                                                        <span className="flex-1">{svc.name}</span>
+                                                                        {svc.unit && (
+                                                                            <span className="text-xs text-muted-foreground ml-2">{svc.unit}</span>
+                                                                        )}
+                                                                    </CommandItem>
+                                                                ))}
+                                                            </CommandGroup>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
                                             )}
                                         </div>
                                         <Select

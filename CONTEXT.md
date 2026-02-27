@@ -109,22 +109,26 @@ Tenant (por construtora):
 ## O que já está implementado
 
 ```
-[ ] Auth e sessão
-[ ] Multi-tenancy e isolamento
-[ ] Painel SISTEMA
-[ ] Gestão de Clientes (tenants)
-[ ] Gestão de Assinaturas/Billing manual
-[ ] Cadastro de Obras (projects)
-[ ] Cadastro de Locais (locations)
-[ ] Cadastro de Serviços e Critérios (services, service_criteria)
-[ ] Planejamento mensal (planning)
-[ ] FVS — Nova inspeção (inspections, inspection_results)
-[ ] FVS — Fluxo de status e retrabalho
-[ ] Pendências e qualidade
-[ ] Relatório FVS em PDF
-[ ] Dashboard com KPIs
-[ ] Sistema de Notificações (in-app + e-mail)
-[ ] Gestão de Inspetores / Usuários
+[x] Auth e sessão
+[x] Multi-tenancy e isolamento
+[x] Painel SISTEMA
+[x] Gestão de Clientes (tenants)
+[x] Gestão de Assinaturas/Billing manual
+[x] Cadastro de Obras (projects) — incluindo campos: cliente, contrato, prazo, engenheiro, fiscalização, características
+[x] Cadastro de Locais (locations)
+[x] Cadastro de Serviços e Critérios (services, service_criteria) — tela full-page com busca
+[x] Planejamento mensal (planning)
+[x] FVS — Nova inspeção (inspections, inspection_results)
+[x] FVS — Fluxo de status e retrabalho
+[x] Pendências e qualidade — com filtro por status
+[x] Relatório FVS em PDF
+[x] Dashboard com KPIs — com filtro por obra e alerta de prazo vencido
+[x] Sistema de Notificações (in-app + e-mail)
+[x] Gestão de Inspetores / Usuários
+[x] Empreiteiras (contractors)
+[x] Contratos (contracts) — com busca no catálogo de serviços
+[x] Diário de Obra (site-diary) — com auto-preenchimento de engenheiro e busca no catálogo
+[x] Boletim de Medição (measurements) — workflow de aprovação completo
 ```
 
 ---
@@ -259,6 +263,7 @@ OK                    → Todos os critérios conformes, FVS aprovada
 |---|---|---|
 | 21/02/2026 | Revisão inicial | — |
 | 22/02/2026 | Fase 4 pré-deploy | Sentry configurado, rate limiting, RLS preparado, env validation |
+| 27/02/2026 | Iteração de melhoria | Cadastro de Obra ampliado, busca catálogo de serviços, Dashboard com filtro+prazo, Pendências com filtro de status |
 
 ---
 

@@ -9,7 +9,6 @@ import type { InferSelectModel } from 'drizzle-orm'
 
 import type { projects } from '@/lib/db/schema/projects'
 import { toggleProjectActive } from '../actions'
-import { EditProjectDialog } from './edit-project-dialog'
 import { useTenant } from '@/features/tenant/components/tenant-provider'
 
 import { Button } from '@/components/ui/button'
@@ -36,7 +35,6 @@ interface ProjectCardProps {
 
 export function ProjectCard({ project, stats }: ProjectCardProps) {
     const [pending, setPending] = useState(false)
-    const [editing, setEditing] = useState(false)
     const { tenant } = useTenant()
 
     // Cálculo real baseado nas métricas vindas do BD (ou mock inicial 0)
@@ -101,9 +99,11 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                             <DropdownMenuContent align="end" className="w-48">
                                 <DropdownMenuLabel>Ações da Obra</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setEditing(true)}>
-                                    <Edit2 className="mr-2 h-4 w-4" />
-                                    Editar Informações
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/${tenant.slug}/projects/${project.id}/edit`}>
+                                        <Edit2 className="mr-2 h-4 w-4" />
+                                        Editar Informações
+                                    </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -165,11 +165,6 @@ export function ProjectCard({ project, stats }: ProjectCardProps) {
                 </div>
             </div>
 
-            <EditProjectDialog
-                project={project}
-                open={editing}
-                onOpenChange={setEditing}
-            />
         </>
     )
 }

@@ -1,6 +1,6 @@
 'use server'
 
-import { eq, and, count, sql } from 'drizzle-orm'
+import { eq, and, count, sql, lt } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { inspections, inspectionItems, issues, projects, planningItems } from '@/lib/db/schema'
 import { getAuthContext } from '@/features/auth/actions'
@@ -8,14 +8,22 @@ import { logger } from '@/lib/logger'
 
 /**
  * Calcula KPIs do tenant para o dashboard.
+ * Aceita filtro opcional por obra.
  */
-export async function getTenantStats() {
+export async function getTenantStats(options?: { projectId?: string }) {
     const { tenant } = await getAuthContext()
 
     try {
         const currentMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+        const today = new Date().toISOString().slice(0, 10)
+        const projectId = options?.projectId
 
-        // Todas as 8 queries em paralelo — de ~8 round-trips sequenciais para 1
+        // Filtro base de tenant + filtro opcional de projeto
+        const inspectionFilter = projectId
+            ? and(eq(projects.tenantId, tenant.id), eq(projects.id, projectId))
+            : eq(projects.tenantId, tenant.id)
+
+        // Todas as queries em paralelo
         const [
             [inspectionsCount],
             [approvedCount],
@@ -25,23 +33,24 @@ export async function getTenantStats() {
             [resolvedIssues],
             [activeProjects],
             [plannedThisMonth],
+            [delayedProjects],
         ] = await Promise.all([
             // Total de inspeções
             db.select({ total: count() })
                 .from(inspections)
                 .innerJoin(projects, eq(inspections.projectId, projects.id))
-                .where(eq(projects.tenantId, tenant.id)),
+                .where(inspectionFilter),
             // Inspeções aprovadas
             db.select({ total: count() })
                 .from(inspections)
                 .innerJoin(projects, eq(inspections.projectId, projects.id))
-                .where(and(eq(projects.tenantId, tenant.id), eq(inspections.result, 'APPROVED'))),
+                .where(and(inspectionFilter, eq(inspections.result, 'APPROVED'))),
             // Inspeções com pendências
             db.select({ total: count() })
                 .from(inspections)
                 .innerJoin(projects, eq(inspections.projectId, projects.id))
                 .where(and(
-                    eq(projects.tenantId, tenant.id),
+                    inspectionFilter,
                     sql`${inspections.result} IN ('REJECTED', 'APPROVED_WITH_RESTRICTIONS')`
                 )),
             // Inspeções em aberto
@@ -49,7 +58,7 @@ export async function getTenantStats() {
                 .from(inspections)
                 .innerJoin(projects, eq(inspections.projectId, projects.id))
                 .where(and(
-                    eq(projects.tenantId, tenant.id),
+                    inspectionFilter,
                     sql`${inspections.status} IN ('DRAFT', 'IN_PROGRESS')`
                 )),
             // Pendências abertas
@@ -57,13 +66,13 @@ export async function getTenantStats() {
                 .from(issues)
                 .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
                 .innerJoin(projects, eq(inspections.projectId, projects.id))
-                .where(and(eq(projects.tenantId, tenant.id), eq(issues.status, 'OPEN'))),
+                .where(and(inspectionFilter, eq(issues.status, 'OPEN'))),
             // Pendências resolvidas
             db.select({ total: count() })
                 .from(issues)
                 .innerJoin(inspections, eq(issues.inspectionId, inspections.id))
                 .innerJoin(projects, eq(inspections.projectId, projects.id))
-                .where(and(eq(projects.tenantId, tenant.id), eq(issues.status, 'RESOLVED'))),
+                .where(and(inspectionFilter, eq(issues.status, 'RESOLVED'))),
             // Obras ativas
             db.select({ total: count() })
                 .from(projects)
@@ -72,7 +81,19 @@ export async function getTenantStats() {
             db.select({ total: count() })
                 .from(planningItems)
                 .innerJoin(projects, eq(planningItems.projectId, projects.id))
-                .where(and(eq(projects.tenantId, tenant.id), eq(planningItems.referenceMonth, currentMonth))),
+                .where(and(
+                    projectId ? and(eq(projects.tenantId, tenant.id), eq(projects.id, projectId)) : eq(projects.tenantId, tenant.id),
+                    eq(planningItems.referenceMonth, currentMonth)
+                )),
+            // Obras atrasadas: ativas com endDate < hoje
+            db.select({ total: count() })
+                .from(projects)
+                .where(and(
+                    eq(projects.tenantId, tenant.id),
+                    eq(projects.active, true),
+                    sql`${projects.endDate} IS NOT NULL`,
+                    lt(projects.endDate, today),
+                )),
         ])
 
         // Taxa de conformidade
@@ -91,6 +112,7 @@ export async function getTenantStats() {
                 resolvedIssues: resolvedIssues?.total ?? 0,
                 activeProjects: activeProjects?.total ?? 0,
                 plannedThisMonth: plannedThisMonth?.total ?? 0,
+                delayedProjects: delayedProjects?.total ?? 0,
                 conformityRate,
             },
         }

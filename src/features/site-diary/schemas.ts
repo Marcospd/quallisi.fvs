@@ -26,6 +26,8 @@ export const equipmentEntrySchema = z.object({
 export const serviceExecutedSchema = z.object({
     description: z.string().min(2, 'Informe o serviço executado'),
     serviceId: z.string().uuid().optional().or(z.literal('')),
+    quantity: z.number().min(0).optional(),
+    unit: z.string().max(50).optional().or(z.literal('')),
     sortOrder: z.number().int().optional(),
 })
 

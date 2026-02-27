@@ -236,6 +236,8 @@ export async function createSiteDiary(input: unknown) {
                             diaryId: diary.id,
                             description: e.description,
                             serviceId: e.serviceId || null,
+                            quantity: e.quantity != null ? e.quantity.toString() : null,
+                            unit: e.unit || null,
                             sortOrder: e.sortOrder ?? i,
                         }))
                     )
@@ -348,6 +350,8 @@ export async function updateSiteDiary(diaryId: string, input: unknown) {
                             diaryId,
                             description: e.description,
                             serviceId: e.serviceId || null,
+                            quantity: e.quantity != null ? e.quantity.toString() : null,
+                            unit: e.unit || null,
                             sortOrder: e.sortOrder ?? i,
                         }))
                     )

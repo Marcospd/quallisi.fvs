@@ -73,6 +73,8 @@ export const diaryServicesExecuted = pgTable('diary_services_executed', {
     diaryId: uuid('diary_id').references(() => siteDiaries.id, { onDelete: 'cascade' }).notNull(),
     description: text('description').notNull(),
     serviceId: uuid('service_id').references(() => services.id),
+    quantity: numeric('quantity', { precision: 14, scale: 4 }),
+    unit: varchar('unit', { length: 50 }),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at').defaultNow(),
 }, (table) => [

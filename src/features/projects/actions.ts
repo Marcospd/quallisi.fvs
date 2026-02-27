@@ -93,6 +93,27 @@ export async function listProjects(options?: {
 }
 
 /**
+ * Retorna uma obra pelo ID, validando que pertence ao tenant.
+ */
+export async function getProject(projectId: string) {
+    const { tenant } = await getAuthContext()
+
+    try {
+        const [project] = await db
+            .select()
+            .from(projects)
+            .where(and(eq(projects.id, projectId), eq(projects.tenantId, tenant.id)))
+            .limit(1)
+
+        if (!project) return { error: 'Obra não encontrada' }
+        return { data: project }
+    } catch (err) {
+        logger.error({ err, projectId, tenantId: tenant.id }, 'Erro ao buscar obra')
+        return { error: 'Erro ao carregar obra' }
+    }
+}
+
+/**
  * Cria uma nova obra vinculada ao tenant atual.
  */
 export async function createProject(input: unknown) {
@@ -116,6 +137,14 @@ export async function createProject(input: unknown) {
                 name: parsed.data.name,
                 address: parsed.data.address || null,
                 imageUrl: parsed.data.imageUrl || null,
+                clientName: parsed.data.clientName || null,
+                contractNumber: parsed.data.contractNumber || null,
+                startDate: parsed.data.startDate || null,
+                endDate: parsed.data.endDate || null,
+                engineerName: parsed.data.engineerName || null,
+                supervision: parsed.data.supervision || null,
+                characteristics: parsed.data.characteristics || null,
+                notes: parsed.data.notes || null,
             })
             .returning()
 
@@ -193,6 +222,14 @@ export async function updateProject(projectId: string, input: unknown) {
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name
     if (parsed.data.address !== undefined) updateData.address = parsed.data.address
     if (parsed.data.imageUrl !== undefined) updateData.imageUrl = parsed.data.imageUrl
+    if (parsed.data.clientName !== undefined) updateData.clientName = parsed.data.clientName || null
+    if (parsed.data.contractNumber !== undefined) updateData.contractNumber = parsed.data.contractNumber || null
+    if (parsed.data.startDate !== undefined) updateData.startDate = parsed.data.startDate || null
+    if (parsed.data.endDate !== undefined) updateData.endDate = parsed.data.endDate || null
+    if (parsed.data.engineerName !== undefined) updateData.engineerName = parsed.data.engineerName || null
+    if (parsed.data.supervision !== undefined) updateData.supervision = parsed.data.supervision || null
+    if (parsed.data.characteristics !== undefined) updateData.characteristics = parsed.data.characteristics || null
+    if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes || null
 
     try {
         const [project] = await db

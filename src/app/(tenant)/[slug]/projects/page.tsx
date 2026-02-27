@@ -1,7 +1,7 @@
+import Link from 'next/link'
 import { Plus, Building2 } from 'lucide-react'
 import { listProjects } from '@/features/projects/actions'
 import { ProjectCard } from '@/features/projects/components/project-card'
-import { CreateProjectDialog } from '@/features/projects/components/create-project-dialog'
 import { DataTableSearch } from '@/components/data-table-search'
 import { DataTablePagination } from '@/components/data-table-pagination'
 import { EmptyState } from '@/components/empty-state'
@@ -17,10 +17,13 @@ export const metadata = {
  * Rota: /[slug]/projects
  */
 export default async function ProjectsPage({
-    searchParams
+    params,
+    searchParams,
 }: {
+    params: Promise<{ slug: string }>
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+    const { slug } = await params
     const sp = await searchParams
     const page = typeof sp.page === 'string' ? parseInt(sp.page, 10) : 1
     const limit = typeof sp.limit === 'string' ? parseInt(sp.limit, 10) : 10
@@ -39,12 +42,12 @@ export default async function ProjectsPage({
                 </div>
                 <div className="flex items-center gap-3">
                     <DataTableSearch placeholder="Buscar obra..." />
-                    <CreateProjectDialog>
-                        <Button>
+                    <Button asChild>
+                        <Link href={`/${slug}/projects/new`}>
                             <Plus className="h-4 w-4 mr-2" />
                             Nova Obra
-                        </Button>
-                    </CreateProjectDialog>
+                        </Link>
+                    </Button>
                 </div>
             </div>
 
@@ -56,12 +59,12 @@ export default async function ProjectsPage({
                     title="Nenhuma obra cadastrada"
                     description="Cadastre sua primeira obra para começar a gerenciar inspeções de qualidade."
                     action={
-                        <CreateProjectDialog>
-                            <Button>
+                        <Button asChild>
+                            <Link href={`/${slug}/projects/new`}>
                                 <Plus className="h-4 w-4 mr-2" />
                                 Nova Obra
-                            </Button>
-                        </CreateProjectDialog>
+                            </Link>
+                        </Button>
                     }
                 />
             ) : (

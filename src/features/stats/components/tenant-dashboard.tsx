@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
     TrendingUp,
     ClipboardCheck,
@@ -10,12 +11,20 @@ import {
     AlertTriangle,
     Building2,
     CalendarDays,
+    CalendarX2,
     Plus,
 } from 'lucide-react'
 import { MetricCard } from '@/components/metric-card'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 
 const DashboardCharts = dynamic(
     () => import('./dashboard-charts').then((mod) => mod.DashboardCharts),
@@ -40,11 +49,20 @@ interface StatsData {
     activeProjects: number
     plannedThisMonth: number
     conformityRate: number
+    delayedProjects: number
+}
+
+interface ProjectOption {
+    id: string
+    name: string
+    active: boolean
 }
 
 interface TenantDashboardProps {
     stats: StatsData
     tenantSlug: string
+    projects: ProjectOption[]
+    selectedProjectId?: string
 }
 
 const COLORS = {
@@ -56,8 +74,20 @@ const COLORS = {
 /**
  * Dashboard completo do tenant com métricas, gráficos e atalhos.
  */
-export function TenantDashboard({ stats, tenantSlug }: TenantDashboardProps) {
+export function TenantDashboard({ stats, tenantSlug, projects, selectedProjectId }: TenantDashboardProps) {
+    const router = useRouter()
+    const searchParams = useSearchParams()
     const hasData = stats.totalInspections > 0
+
+    function handleProjectFilter(projectId: string) {
+        const params = new URLSearchParams(searchParams.toString())
+        if (projectId === 'all') {
+            params.delete('projectId')
+        } else {
+            params.set('projectId', projectId)
+        }
+        router.push(`?${params.toString()}`)
+    }
 
     // Dados para gráfico de pizza (distribuição de inspeções)
     const pieData = [
@@ -75,6 +105,47 @@ export function TenantDashboard({ stats, tenantSlug }: TenantDashboardProps) {
 
     return (
         <div className="space-y-6">
+            {/* Filtro por obra */}
+            {projects.length > 0 && (
+                <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">Filtrar por obra:</span>
+                    <Select
+                        value={selectedProjectId ?? 'all'}
+                        onValueChange={handleProjectFilter}
+                    >
+                        <SelectTrigger className="w-[240px]">
+                            <SelectValue placeholder="Todas as obras" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Todas as obras</SelectItem>
+                            {projects.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                    {p.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+
+            {/* Alerta de obras atrasadas — só exibe sem filtro de projeto */}
+            {!selectedProjectId && stats.delayedProjects > 0 && (
+                <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+                    <CalendarX2 className="h-5 w-5 shrink-0" />
+                    <span className="text-sm font-medium">
+                        {stats.delayedProjects === 1
+                            ? '1 obra está com prazo vencido.'
+                            : `${stats.delayedProjects} obras estão com prazo vencido.`}
+                    </span>
+                    <Link
+                        href={`/${tenantSlug}/projects`}
+                        className="ml-auto text-sm underline underline-offset-2 hover:no-underline"
+                    >
+                        Ver obras
+                    </Link>
+                </div>
+            )}
+
             {/* Cards de métricas principais */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <MetricCard

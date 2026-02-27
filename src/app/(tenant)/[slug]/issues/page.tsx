@@ -3,6 +3,7 @@ import { listIssues } from '@/features/issues/actions'
 import { EmptyState } from '@/components/empty-state'
 import { ErrorState } from '@/components/error-state'
 import { IssuesTable } from '@/features/issues/components/issues-table'
+import { IssuesFilter } from '@/features/issues/components/issues-filter'
 
 export const metadata = {
     title: 'Pendências — Quallisy FVS',
@@ -20,7 +21,9 @@ export default async function IssuesPage({
     const sp = await searchParams
     const sort = typeof sp.sort === 'string' ? sp.sort : undefined
     const order = sp.order === 'desc' ? 'desc' as const : sp.order === 'asc' ? 'asc' as const : undefined
-    const result = await listIssues({ sort, order })
+    const status = typeof sp.status === 'string' ? sp.status : undefined
+
+    const result = await listIssues({ sort, order, status })
 
     return (
         <div className="space-y-6 p-6">
@@ -31,13 +34,19 @@ export default async function IssuesPage({
                 </p>
             </div>
 
+            <IssuesFilter selectedStatus={status} />
+
             {result.error ? (
                 <ErrorState description={result.error} />
             ) : !result.data || result.data.length === 0 ? (
                 <EmptyState
                     icon={AlertTriangle}
-                    title="Nenhuma pendência registrada"
-                    description="As pendências são geradas automaticamente quando inspeções contêm não-conformidades (NC). Isso é um bom sinal!"
+                    title="Nenhuma pendência encontrada"
+                    description={
+                        status
+                            ? 'Nenhuma pendência encontrada para o filtro selecionado.'
+                            : 'As pendências são geradas automaticamente quando inspeções contêm não-conformidades (NC). Isso é um bom sinal!'
+                    }
                 />
             ) : (
                 <IssuesTable issues={result.data} />

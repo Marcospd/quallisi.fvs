@@ -78,6 +78,31 @@ export async function listServices(options?: {
 }
 
 /**
+ * Lista serviços ativos do tenant para uso em dropdowns/selects.
+ * Query leve: sem JOINs, apenas id, name, unit.
+ */
+export async function listServiceOptions() {
+    const { tenant } = await getAuthContext()
+
+    try {
+        const result = await db
+            .select({
+                id: services.id,
+                name: services.name,
+                unit: services.unit,
+            })
+            .from(services)
+            .where(and(eq(services.tenantId, tenant.id), eq(services.active, true)))
+            .orderBy(asc(services.name))
+
+        return { data: result }
+    } catch (err) {
+        logger.error({ err, tenantId: tenant.id }, 'Erro ao listar opções de serviços')
+        return { error: 'Erro ao carregar serviços' }
+    }
+}
+
+/**
  * Busca um único serviço com seus critérios.
  */
 export async function getService(serviceId: string) {

@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -20,15 +20,34 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select'
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+} from '@/components/ui/command'
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover'
 
 import { createSiteDiarySchema, type CreateSiteDiaryInput } from '../schemas'
 import { createSiteDiary, updateSiteDiary } from '../actions'
-import { listProjectOptions } from '@/features/projects/actions'
+import { listProjectOptions, getProject } from '@/features/projects/actions'
+import { listServiceOptions } from '@/features/services/actions'
 
 interface ProjectOption {
     id: string
     name: string
     active: boolean
+}
+
+interface ServiceOption {
+    id: string
+    name: string
+    unit: string | null
 }
 
 interface DiaryFormProps {
@@ -43,6 +62,8 @@ export function DiaryForm({ mode, diaryId, defaultValues }: DiaryFormProps) {
     const slug = params.slug as string
     const [isPending, startTransition] = useTransition()
     const [projects, setProjects] = useState<ProjectOption[]>([])
+    const [serviceOptions, setServiceOptions] = useState<ServiceOption[]>([])
+    const [openServicePopover, setOpenServicePopover] = useState<number | null>(null)
 
     const form = useForm<CreateSiteDiaryInput>({
         resolver: zodResolver(createSiteDiarySchema),
@@ -71,12 +92,39 @@ export function DiaryForm({ mode, diaryId, defaultValues }: DiaryFormProps) {
     const observationFields = useFieldArray({ control: form.control, name: 'observations' })
 
     useEffect(() => {
-        listProjectOptions().then((res) => {
-            if (res.data) {
-                setProjects(res.data)
-            }
+        Promise.all([
+            listProjectOptions(),
+            listServiceOptions(),
+        ]).then(([projRes, svcRes]) => {
+            if (projRes.data) setProjects(projRes.data)
+            if (svcRes.data) setServiceOptions(svcRes.data.map((s) => ({ id: s.id, name: s.name, unit: s.unit })))
         })
     }, [])
+
+    // Auto-fill campos da obra quando projeto muda (apenas em criação)
+    async function handleProjectChange(projectId: string) {
+        form.setValue('projectId', projectId, { shouldValidate: true })
+
+        if (mode === 'create' && projectId) {
+            const res = await getProject(projectId)
+            if (res.data) {
+                const project = res.data
+                if (!form.getValues('engineerName') && project.engineerName) {
+                    form.setValue('engineerName', project.engineerName)
+                }
+                if (!form.getValues('contractorName') && project.clientName) {
+                    form.setValue('contractorName', project.clientName)
+                }
+            }
+        }
+    }
+
+    function handleSelectService(index: number, service: ServiceOption) {
+        form.setValue(`servicesExecuted.${index}.description`, service.name, { shouldValidate: true })
+        form.setValue(`servicesExecuted.${index}.serviceId`, service.id)
+        form.setValue(`servicesExecuted.${index}.unit`, service.unit || '')
+        setOpenServicePopover(null)
+    }
 
     function onSubmit(data: CreateSiteDiaryInput) {
         startTransition(async () => {
@@ -109,7 +157,7 @@ export function DiaryForm({ mode, diaryId, defaultValues }: DiaryFormProps) {
                             control={form.control}
                             name="projectId"
                             render={({ field }) => (
-                                <Select value={field.value} onValueChange={field.onChange}>
+                                <Select value={field.value} onValueChange={handleProjectChange}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Selecione a obra" />
                                     </SelectTrigger>
@@ -151,7 +199,7 @@ export function DiaryForm({ mode, diaryId, defaultValues }: DiaryFormProps) {
 
                     <div className="space-y-2">
                         <Label>Engenheiro</Label>
-                        <Input {...form.register('engineerName')} placeholder="Nome do engenheiro" />
+                        <Input {...form.register('engineerName')} placeholder="Preenchido automaticamente da obra" />
                     </div>
 
                     <div className="space-y-2">
@@ -341,12 +389,19 @@ export function DiaryForm({ mode, diaryId, defaultValues }: DiaryFormProps) {
             {/* Serviços Executados */}
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Serviços Executados</CardTitle>
+                    <div>
+                        <CardTitle>Serviços Executados</CardTitle>
+                        {serviceOptions.length > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Use <BookOpen className="inline h-3 w-3" /> para buscar no catálogo de serviços
+                            </p>
+                        )}
+                    </div>
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => servicesFields.append({ description: '', serviceId: '' })}
+                        onClick={() => servicesFields.append({ description: '', serviceId: '', quantity: undefined, unit: '' })}
                     >
                         <Plus className="h-4 w-4 mr-1" /> Adicionar
                     </Button>
@@ -358,23 +413,75 @@ export function DiaryForm({ mode, diaryId, defaultValues }: DiaryFormProps) {
                         </p>
                     ) : (
                         <div className="space-y-3">
-                            <div className="grid grid-cols-[1fr_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
-                                <span>Descrição do Serviço</span>
+                            <div className="hidden md:grid md:grid-cols-[1fr_100px_80px_40px] gap-2 text-xs font-medium text-muted-foreground px-1">
+                                <span>Serviço / Descrição</span>
+                                <span>Unidade</span>
+                                <span>Qtd</span>
                                 <span />
                             </div>
                             {servicesFields.fields.map((field, index) => (
-                                <div key={field.id} className="grid grid-cols-[1fr_40px] gap-2 items-start">
-                                    <div>
-                                        <Input
-                                            {...form.register(`servicesExecuted.${index}.description`)}
-                                            placeholder="Ex: Execução de alvenaria bloco 14x19x39"
-                                        />
-                                        {form.formState.errors.servicesExecuted?.[index]?.description && (
-                                            <p className="text-xs text-destructive mt-1">
-                                                {form.formState.errors.servicesExecuted[index]?.description?.message}
-                                            </p>
+                                <div key={field.id} className="grid grid-cols-1 md:grid-cols-[1fr_100px_80px_40px] gap-2 items-start border rounded-lg p-3 md:border-none md:p-0">
+                                    <div className="flex gap-1">
+                                        <div className="flex-1">
+                                            <Input
+                                                {...form.register(`servicesExecuted.${index}.description`)}
+                                                placeholder="Ex: Execução de alvenaria bloco 14x19x39"
+                                            />
+                                            {form.formState.errors.servicesExecuted?.[index]?.description && (
+                                                <p className="text-xs text-destructive mt-1">
+                                                    {form.formState.errors.servicesExecuted[index]?.description?.message}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {serviceOptions.length > 0 && (
+                                            <Popover
+                                                open={openServicePopover === index}
+                                                onOpenChange={(open) => setOpenServicePopover(open ? index : null)}
+                                            >
+                                                <PopoverTrigger asChild>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        title="Buscar no catálogo de serviços"
+                                                    >
+                                                        <BookOpen className="h-4 w-4" />
+                                                    </Button>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-72 p-0" align="start">
+                                                    <Command>
+                                                        <CommandInput placeholder="Buscar serviço..." />
+                                                        <CommandEmpty>Nenhum serviço encontrado.</CommandEmpty>
+                                                        <CommandGroup className="max-h-48 overflow-y-auto">
+                                                            {serviceOptions.map((svc) => (
+                                                                <CommandItem
+                                                                    key={svc.id}
+                                                                    value={svc.name}
+                                                                    onSelect={() => handleSelectService(index, svc)}
+                                                                >
+                                                                    <span className="flex-1">{svc.name}</span>
+                                                                    {svc.unit && (
+                                                                        <span className="text-xs text-muted-foreground ml-2">{svc.unit}</span>
+                                                                    )}
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </Command>
+                                                </PopoverContent>
+                                            </Popover>
                                         )}
                                     </div>
+                                    <Input
+                                        {...form.register(`servicesExecuted.${index}.unit`)}
+                                        placeholder="m², m, un..."
+                                    />
+                                    <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        {...form.register(`servicesExecuted.${index}.quantity`, { valueAsNumber: true })}
+                                        placeholder="0,00"
+                                    />
                                     <Button
                                         type="button"
                                         variant="ghost"

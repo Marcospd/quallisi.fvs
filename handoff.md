@@ -219,6 +219,7 @@ Sempre retornar `{ data: T }` ou `{ error: string | ZodFlattenedError }`.
 | 2026-02-22 | Claude Code | Upload de fotos, migrations geradas, 39 testes unitários. |
 | 2026-02-22 | Antigravity | Fase 4 pré-deploy: Sentry (client/server/edge + global-error), Rate limiting (login 5/min, convite 10/min), RLS SQL (15 tabelas + Storage), Validação de env vars (Zod). Build OK. |
 | 2026-02-22 | Antigravity | Bugfix: Auth Action try/catches para CORS/500 proxy error na Vercel resolvido. Setup pooler Drizzle (`prepare:false`) configurado. Criado watcher online `/api/diagnostic` free-auth para monitoramento de instabilidade de Banco. |
+| 2026-02-27 | Claude Code | Iteração de melhoria sobre feedback de especialista: (1) Cadastro de Obra ampliado com 8 novos campos (cliente, contrato, prazo, engenheiro, fiscalização, características) + formulário full-page + migration 0010. (2) Contratos: busca de serviços do catálogo via Command/Popover. (3) Diário de Obra: auto-preenchimento de engenheiro da obra, busca no catálogo, quantidade+unidade nos serviços executados + migration 0011. (4) Dashboard: filtro por obra via URL param + alerta âmbar de obras com prazo vencido. (5) Pendências: filtro por status via URL param. (6) Instalado shadcn/ui command+popover. Build OK. cenarios-de-teste.md atualizado com seções 5-9. |
 | — | — | *(Próxima IA: preencher esta linha ao terminar)* |
 
 ---
